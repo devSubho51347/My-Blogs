@@ -3,9 +3,9 @@
 This folder contains a **step-by-step** implementation of **binary logistic regression** built from scratch.
 
 ## Rules followed in this tutorial
-- ✅ `sklearn` is used **only to load the dataset** (`load_breast_cancer`).
-- ✅ Splitting, scaling, metrics, training loop: **from scratch**.
-- ✅ Implementation is shown incrementally: minimal → better engineering → better accuracy.
+- `sklearn` is used **only to load the dataset** (`load_breast_cancer`).
+  Splitting, scaling, metrics, training loop: **from scratch**.
+- Implementation is shown incrementally: minimal → better engineering → better accuracy.
 
 ## Notebooks (recommended order)
 All notebooks are under: `notebooks/`
