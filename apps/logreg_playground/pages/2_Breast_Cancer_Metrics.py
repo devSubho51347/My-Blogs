@@ -3,9 +3,12 @@ from __future__ import annotations
 import numpy as np
 import streamlit as st
 
+from datetime import datetime
+
 from src.datasets import load_breast_cancer_dataset
 from src.metrics import compute_metrics
 from src.preprocessing import standardize_fit, standardize_transform
+from src.reporting import build_pdf_report, make_run_id, save_snapshot
 from src.schema import LRParams, validate_params
 from src.training import fit_final
 
@@ -23,6 +26,21 @@ Instead, this page helps you see how hyperparameters affect:
 - precision/recall/F1
 """
 )
+
+
+def confusion_matrix_figure(cm: np.ndarray, title: str = "Confusion matrix"):
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(4, 3))
+    im = ax.imshow(cm, cmap="Blues")
+    ax.set_title(title)
+    ax.set_xlabel("pred")
+    ax.set_ylabel("true")
+    for (i, j), v in np.ndenumerate(cm):
+        ax.text(j, i, str(v), ha="center", va="center")
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig.tight_layout()
+    return fig
 
 
 def sidebar_model_controls() -> tuple[LRParams, bool]:
@@ -80,12 +98,21 @@ if use_standardize:
     X_train = standardize_transform(X_train, mu, sigma)
     X_test = standardize_transform(X_test, mu, sigma)
 
-do_fit = st.button("Train", type="primary")
+col_a, col_b = st.columns([1, 1])
+with col_a:
+    do_fit = st.button("Train", type="primary")
+with col_b:
+    capture = st.button("Capture snapshot (save + PDF)")
 
 if do_fit:
     model = fit_final(params, X_train, y_train)
     y_pred = model.predict(X_test)
     m = compute_metrics(y_test, y_pred)
+
+    st.session_state["bc_last_model"] = model
+    st.session_state["bc_last_metrics"] = m
+    st.session_state["bc_last_params"] = params
+    st.session_state["bc_last_standardize"] = use_standardize
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Accuracy", f"{m.accuracy:.4f}")
@@ -95,3 +122,39 @@ if do_fit:
 
     st.subheader("Confusion matrix")
     st.dataframe(m.confusion)
+
+if capture:
+    model = st.session_state.get("bc_last_model")
+    m = st.session_state.get("bc_last_metrics")
+    params2 = st.session_state.get("bc_last_params")
+    standardize2 = st.session_state.get("bc_last_standardize")
+
+    if model is None or m is None or params2 is None:
+        st.warning("Nothing to capture yet. Train first.")
+    else:
+        run_id = make_run_id(prefix="breast_cancer")
+        cm_fig = confusion_matrix_figure(m.confusion, title="Confusion matrix (test)")
+
+        meta = {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "page": "breast_cancer",
+            "dataset": {
+                "name": "breast_cancer",
+                "n_samples": int(len(X)),
+                "n_features": int(X.shape[1]),
+            },
+            "standardize": bool(standardize2),
+            "hyperparameters": params2,
+            "metrics": {
+                "accuracy": m.accuracy,
+                "precision": m.precision,
+                "recall": m.recall,
+                "f1": m.f1,
+                "confusion": m.confusion,
+            },
+        }
+
+        run_dir = save_snapshot(run_id=run_id, meta=meta, confusion_fig=cm_fig)
+        pdf_path = build_pdf_report(run_dir)
+        st.success(f"Saved snapshot to: {run_dir}")
+        st.success(f"PDF report: {pdf_path}")
