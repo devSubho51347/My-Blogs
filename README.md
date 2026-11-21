@@ -1,4 +1,4 @@
-# My-Blogs
+# Daily_Bytes_Of_AI
 
 Long-form posts live under [`posts/`](posts/).
 
