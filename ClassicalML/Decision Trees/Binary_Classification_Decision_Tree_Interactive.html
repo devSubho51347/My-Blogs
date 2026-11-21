@@ -1,0 +1,2829 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Decision Trees from Scratch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: long-form reading column with a sticky contents rail on wide screens; labs are framed instruments inside the column. */
+:root {
+  --bg: #f4f6f5;
+  --surface: #ffffff;
+  --surface-2: #eef2f0;
+  --ink: #15201c;
+  --ink-2: #47554f;
+  --muted: #74827c;
+  --line: #d9e0dc;
+  --accent: #0d7468;
+  --accent-soft: #d5ece8;
+  --violet: #6250d6;
+  --c0: #2a78d6;  /* class 0: not readmitted */
+  --c1: #eb6834;  /* class 1: readmitted */
+  --t0: #dbe9fb;
+  --t1: #fbe1d5;
+  --plate: #fcfcfb;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --measure: 46rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1412; --surface: #151d1a; --surface-2: #1b2521; --ink: #e5ece9; --ink-2: #a9b6b0; --muted: #7c8a84;
+    --line: #26322d; --accent: #37b8a9; --accent-soft: #163a35; --violet: #9085e9;
+    --c0: #3987e5; --c1: #d95926; --t0: #1a2d47; --t1: #45241a; --plate: #fcfcfb; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1412; --surface: #151d1a; --surface-2: #1b2521; --ink: #e5ece9; --ink-2: #a9b6b0; --muted: #7c8a84;
+  --line: #26322d; --accent: #37b8a9; --accent-soft: #163a35; --violet: #9085e9;
+  --c0: #3987e5; --c1: #d95926; --t0: #1a2d47; --t1: #45241a; --plate: #fcfcfb; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16.5px; line-height: 1.65; }
+a { color: var(--accent); text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* ---------- hero ---------- */
+.hero { margin-top: calc(-1 * env(safe-area-inset-top, 0px)); padding-top: calc(env(safe-area-inset-top, 0px) + 3.2rem); padding-bottom: 2.6rem; background: var(--surface); border-bottom: 1px solid var(--line); }
+.hero-inner { max-width: 74rem; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 2.5rem; align-items: center; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 0.8rem; }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.3rem, 5vw, 3.6rem); line-height: 1.04; letter-spacing: -0.02em; margin: 0 0 1rem; text-wrap: balance; }
+.lede { font-size: 1.08rem; color: var(--ink-2); max-width: 36rem; margin: 0 0 1.4rem; }
+.hero-facts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.hero-facts li { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 0.2rem 0.7rem; }
+.hero-key { font-family: var(--font-mono); font-size: 0.86rem; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.2rem; min-width: 0; }
+.hero-key h2 { font-family: var(--font-body); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 0.7rem; font-weight: 600; }
+.hero-key ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.hero-key li { display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.4rem; }
+.hero-key .k { color: var(--muted); }
+.hero-key a { color: var(--ink); text-decoration: none; }
+.hero-key a:hover { color: var(--accent); text-decoration: underline; }
+.hero-key .goto { color: var(--accent); }
+
+/* ---------- page grid ---------- */
+.page { max-width: 74rem; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 2rem 5rem; display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 3rem; }
+.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.2rem); align-self: start; max-height: calc(100vh - 2.4rem); overflow-y: auto; font-size: 0.84rem; padding-right: 0.4rem; }
+.toc h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 0.6rem; font-weight: 600; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.toc a { display: grid; grid-template-columns: 1.7rem 1fr; gap: 0.2rem; padding: 0.28rem 0.5rem; border-radius: 6px; color: var(--ink-2); text-decoration: none; line-height: 1.35; }
+.toc a:hover { background: var(--surface-2); color: var(--ink); }
+.toc a.active { background: var(--accent-soft); color: var(--ink); font-weight: 500; }
+.toc-num { font-family: var(--font-mono); color: var(--muted); font-size: 0.78rem; }
+.toc-mobile { display: none; }
+main { min-width: 0; }
+.prose { max-width: var(--measure); }
+.prose > *, .prose .lab, .prose figure { min-width: 0; }
+
+/* ---------- typography ---------- */
+h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; color: var(--ink); }
+main h2 { font-size: 1.85rem; line-height: 1.15; letter-spacing: -0.01em; margin: 3.6rem 0 1rem; padding-top: 1.4rem; border-top: 1px solid var(--line); scroll-margin-top: 1rem; display: flex; gap: 0.7rem; align-items: baseline; }
+main h2:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
+.secnum { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 500; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 0.1rem 0.45rem; flex: none; position: relative; top: -0.2rem; }
+main h3 { font-size: 1.22rem; margin: 2.2rem 0 0.6rem; scroll-margin-top: 1rem; }
+main p, main li { color: var(--ink); }
+main ul, main ol { padding-left: 1.4rem; }
+main li { margin: 0.25rem 0; }
+code { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-2); padding: 0.08rem 0.32rem; border-radius: 4px; }
+strong { font-weight: 600; }
+.eq { margin: 1.1rem 0; overflow-x: auto; overflow-y: hidden; }
+mjx-container[jax="SVG"][display="true"] { margin: 0.4rem 0 !important; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+mjx-container[jax="SVG"] > svg { overflow: visible; }
+.callout { margin: 1.4rem 0; padding: 0.9rem 1.1rem; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 8px 8px 0; }
+.callout p { margin: 0.3rem 0; }
+
+/* ---------- tables ---------- */
+.table-wrap { overflow-x: auto; margin: 1.2rem 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-weight: 600; color: var(--ink-2); background: var(--surface-2); font-size: 0.82rem; }
+tr:last-child td { border-bottom: 0; }
+
+/* ---------- static figures ---------- */
+figure.plate { margin: 1.8rem 0; }
+.plate-img { background: var(--plate); border: 1px solid var(--line); border-radius: 10px; padding: 0.8rem; overflow-x: auto; }
+.plate-img img { display: block; width: 100%; height: auto; min-width: 520px; }
+figcaption { font-size: 0.88rem; color: var(--ink-2); margin-top: 0.6rem; line-height: 1.55; }
+.fig-num { font-family: var(--font-mono); font-weight: 500; color: var(--ink); margin-right: 0.4rem; }
+
+/* ---------- labs ---------- */
+.lab { margin: 2rem 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem 1.2rem; box-shadow: 0 1px 0 var(--line); }
+.lab-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.lab-head h4 { margin: 0; font-size: 1.08rem; }
+.chip { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0.05rem 0.4rem; }
+.lab-note { font-size: 0.9rem; color: var(--ink-2); margin: 0.2rem 0 0.9rem; }
+.controls { display: flex; flex-wrap: wrap; gap: 0.8rem 1.4rem; align-items: center; margin-bottom: 0.9rem; font-size: 0.88rem; }
+.ctl { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.ctl > label, .ctl > .lbl { color: var(--ink-2); font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 0.84rem; border: 0; background: var(--surface); color: var(--ink-2); padding: 0.32rem 0.75rem; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.btn { font: inherit; font-size: 0.84rem; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); padding: 0.32rem 0.8rem; border-radius: 8px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.small { font-size: 0.78rem; padding: 0.18rem 0.55rem; }
+select, input[type="number"] { font: inherit; font-size: 0.86rem; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 0.25rem 0.4rem; }
+input[type="number"] { width: 4.6rem; font-family: var(--font-mono); }
+input[type="range"] { accent-color: var(--accent); width: 12rem; max-width: 100%; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.readout { font-family: var(--font-mono); font-size: 0.84rem; color: var(--ink); }
+.stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.8rem; }
+.stat { font-family: var(--font-mono); font-size: 0.8rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 0.25rem 0.6rem; color: var(--ink-2); }
+.stat b { color: var(--ink); font-weight: 500; }
+.stat.warn b { color: var(--c1); }
+.chart { width: 100%; height: auto; display: block; }
+.chart-wrap { overflow-x: auto; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
+.grid32 { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; align-items: start; }
+.stack { display: grid; gap: 1rem; }
+.lab .mono, .pill { white-space: nowrap; }
+.panel { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 0.8rem 0.9rem; min-width: 0; }
+.panel h5 { font-family: var(--font-display); font-size: 0.95rem; margin: 0 0 0.5rem; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.9rem; font-size: 0.86rem; margin: 0; }
+.kv dt { color: var(--ink-2); }
+.kv dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.lab table { font-size: 0.82rem; }
+.lab td, .lab th { padding: 0.32rem 0.55rem; }
+.lab .table-wrap { margin: 0.4rem 0; }
+tr.hl td { background: var(--accent-soft); }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.74rem; border-radius: 999px; padding: 0.05rem 0.5rem; border: 1px solid var(--line); }
+.pill.y1 { background: var(--t1); color: var(--ink); border-color: transparent; }
+.pill.y0 { background: var(--t0); color: var(--ink); border-color: transparent; }
+.pill.best { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.flip { font: inherit; font-family: var(--font-mono); font-size: 0.78rem; cursor: pointer; border: 1px solid transparent; border-radius: 999px; padding: 0.05rem 0.55rem; }
+.flip.y1 { background: var(--t1); color: var(--ink); }
+.flip.y0 { background: var(--t0); color: var(--ink); }
+.flip.changed { border-color: var(--ink); }
+.tree-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); margin-bottom: 1rem; }
+.tree-scroll svg { display: block; margin: 0 auto; height: auto; }
+.cand-scroll { max-height: 18rem; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.cand-scroll table { font-size: 0.8rem; }
+.cand-scroll th { position: sticky; top: 0; }
+.note-sm { font-size: 0.8rem; color: var(--muted); margin: 0.4rem 0 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.8rem; color: var(--ink-2); margin: 0.3rem 0; }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.sw.dot { width: 10px; height: 10px; border-radius: 50%; }
+.sw.box { width: 12px; height: 12px; border-radius: 3px; }
+canvas.regions { width: 100%; max-width: 420px; aspect-ratio: 1 / 1; height: auto; display: block; border: 1px solid var(--line); border-radius: 8px; }
+.explain { font-size: 0.86rem; color: var(--ink-2); margin: 0.6rem 0 0; }
+.explain b { color: var(--ink); font-weight: 600; }
+.bars { display: flex; gap: 6px; height: 26px; margin: 0.3rem 0 0.2rem; }
+.bars > div { display: flex; border-radius: 4px; overflow: hidden; min-width: 2px; }
+.bars i { display: block; height: 100%; }
+
+/* SVG roles */
+.s-ink { fill: var(--ink); } .s-ink2 { fill: var(--ink-2); } .s-muted { fill: var(--muted); }
+.s-grid { stroke: var(--line); stroke-width: 1; fill: none; }
+.s-axis { stroke: var(--muted); stroke-width: 1; fill: none; }
+.s-c0 { fill: var(--c0); } .s-c1 { fill: var(--c1); }
+.s-t0 { fill: var(--t0); } .s-t1 { fill: var(--t1); }
+.s-node { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; }
+.s-node.leaf0 { fill: var(--t0); } .s-node.leaf1 { fill: var(--t1); }
+.s-node.sel { stroke: var(--accent); stroke-width: 2.6; }
+.s-node.onpath { stroke: var(--accent); stroke-width: 2.2; }
+.s-node.pruned { stroke-width: 1.2; }
+.s-edge { stroke: var(--muted); stroke-width: 1.3; fill: none; }
+.s-edge.onpath { stroke: var(--accent); stroke-width: 2.6; }
+.s-ghost { opacity: 0.28; }
+.s-band { fill: var(--surface-2); }
+.s-accent { stroke: var(--accent); fill: none; stroke-width: 2; }
+.s-acc-fill { fill: var(--accent); }
+.s-violet { stroke: var(--violet); fill: none; stroke-width: 2; }
+.s-violet-fill { fill: var(--violet); }
+.s-line-muted { stroke: var(--muted); fill: none; stroke-width: 1.3; }
+.s-c0-line { stroke: var(--c0); fill: none; stroke-width: 2; }
+.s-c1-line { stroke: var(--c1); fill: none; stroke-width: 2; }
+.s-ring { stroke: var(--surface); stroke-width: 1.5; }
+.node-g { cursor: pointer; }
+.node-g:focus { outline: none; }
+.node-g:focus-visible .s-node { stroke: var(--accent); stroke-width: 3; }
+svg text { font-family: var(--font-body); }
+svg .mono { font-family: var(--font-mono); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1000px) {
+  .page { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .toc { display: none; }
+  .toc-mobile { display: block; margin-bottom: 1.5rem; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.6rem 0.9rem; font-size: 0.9rem; }
+  .toc-mobile summary { cursor: pointer; font-weight: 600; }
+  .toc-mobile ol { list-style: none; padding: 0; margin: 0.6rem 0 0; display: grid; gap: 0.2rem; }
+  .toc-mobile a { display: grid; grid-template-columns: 1.7rem 1fr; color: var(--ink-2); text-decoration: none; }
+  .hero-inner { grid-template-columns: minmax(0, 1fr); gap: 1.6rem; }
+  .prose { max-width: none; }
+}
+@media (max-width: 700px) {
+  body { font-size: 16px; }
+  .grid2, .grid32 { grid-template-columns: minmax(0, 1fr); }
+  main h2 { font-size: 1.5rem; }
+  .lab { padding: 0.9rem 0.8rem 1rem; }
+  .plate-img img { min-width: 480px; }
+}
+</style>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <p class="eyebrow">Classical ML · binary classification · built from first principles</p>
+      <h1>Decision Trees from Scratch</h1>
+      <p class="lede">How to build a binary classification tree with nothing but counts, logarithms and a sorting step: impurity, split search, the statistics behind each split, and pruning. Everything is worked by hand on a 14-patient readmission dataset, and seven live labs recompute it in your browser.</p>
+      <ul class="hero-facts">
+        <li>22 sections</li><li>7 labs</li><li>[n₀ | n₁] at every node</li><li>no code</li>
+      </ul>
+    </div>
+    <nav class="hero-key" aria-label="Labs">
+      <h2>Labs in this guide</h2>
+      <ol>
+        <li><span class="k">§4</span><a href="#lab-impurity">Impurity explorer <span class="goto">→</span></a></li>
+        <li><span class="k">§5</span><a href="#lab-splitlab">Split calculator and significance tests <span class="goto">→</span></a></li>
+        <li><span class="k">§7</span><a href="#lab-scan">Threshold scanner <span class="goto">→</span></a></li>
+        <li><span class="k">§7</span><a href="#lab-builder">Tree builder and patient predictor <span class="goto">→</span></a></li>
+        <li><span class="k">§9</span><a href="#lab-threshold">Cost-sensitive decision threshold <span class="goto">→</span></a></li>
+        <li><span class="k">§11</span><a href="#lab-sandbox">Overfitting sandbox <span class="goto">→</span></a></li>
+        <li><span class="k">§13</span><a href="#lab-prune">Weakest-link pruning <span class="goto">→</span></a></li>
+      </ol>
+    </nav>
+  </div>
+</header>
+
+<div class="page">
+  <nav class="toc" aria-label="Contents">
+    <h2>Contents</h2>
+    <ol id="toc-list">
+<li><a href="#how-to-use-this-document"><span class="toc-num">·</span>How to use this document</a></li>
+<li><a href="#notation"><span class="toc-num">·</span>Notation</a></li>
+<li><a href="#1-the-binary-classification-problem"><span class="toc-num">1</span>The binary classification problem</a></li>
+<li><a href="#2-what-a-decision-tree-is"><span class="toc-num">2</span>What a decision tree is</a></li>
+<li><a href="#3-why-trees-are-grown-greedily"><span class="toc-num">3</span>Why trees are grown greedily</a></li>
+<li><a href="#4-measuring-node-impurity"><span class="toc-num">4</span>Measuring node impurity</a></li>
+<li><a href="#5-scoring-a-split"><span class="toc-num">5</span>Scoring a split</a></li>
+<li><a href="#6-generating-candidate-splits-for-each-feature-type"><span class="toc-num">6</span>Generating candidate splits for each feature type</a></li>
+<li><a href="#7-worked-example-building-a-tree-by-hand"><span class="toc-num">7</span>Worked example: building a tree by hand</a></li>
+<li><a href="#8-the-growth-algorithm-formally"><span class="toc-num">8</span>The growth algorithm, formally</a></li>
+<li><a href="#9-leaf-predictions-from-counts-to-probabilities-to-decisions"><span class="toc-num">9</span>Leaf predictions: from counts to probabilities to decisions</a></li>
+<li><a href="#10-the-statistics-underneath-what-a-tree-really-optimises"><span class="toc-num">10</span>The statistics underneath: what a tree really optimises</a></li>
+<li><a href="#11-overfitting-and-the-biasvariance-trade-off"><span class="toc-num">11</span>Overfitting and the bias–variance trade-off</a></li>
+<li><a href="#12-pre-pruning-stopping-early"><span class="toc-num">12</span>Pre-pruning: stopping early</a></li>
+<li><a href="#13-post-pruning-growing-big-then-cutting-back"><span class="toc-num">13</span>Post-pruning: growing big, then cutting back</a></li>
+<li><a href="#14-practical-complications"><span class="toc-num">14</span>Practical complications</a></li>
+<li><a href="#15-computational-complexity"><span class="toc-num">15</span>Computational complexity</a></li>
+<li><a href="#16-evaluating-the-classifier"><span class="toc-num">16</span>Evaluating the classifier</a></li>
+<li><a href="#17-interpreting-the-tree"><span class="toc-num">17</span>Interpreting the tree</a></li>
+<li><a href="#18-limitations-and-where-ensembles-come-in"><span class="toc-num">18</span>Limitations and where ensembles come in</a></li>
+<li><a href="#19-implementation-blueprint-specification-not-code"><span class="toc-num">19</span>Implementation blueprint (specification, not code)</a></li>
+<li><a href="#20-formula-sheet"><span class="toc-num">20</span>Formula sheet</a></li>
+<li><a href="#21-glossary"><span class="toc-num">21</span>Glossary</a></li>
+<li><a href="#22-references"><span class="toc-num">22</span>References</a></li>
+    </ol>
+  </nav>
+  <main>
+    <details class="toc-mobile"><summary>Contents</summary><ol>
+<li><a href="#how-to-use-this-document"><span class="toc-num">·</span>How to use this document</a></li>
+<li><a href="#notation"><span class="toc-num">·</span>Notation</a></li>
+<li><a href="#1-the-binary-classification-problem"><span class="toc-num">1</span>The binary classification problem</a></li>
+<li><a href="#2-what-a-decision-tree-is"><span class="toc-num">2</span>What a decision tree is</a></li>
+<li><a href="#3-why-trees-are-grown-greedily"><span class="toc-num">3</span>Why trees are grown greedily</a></li>
+<li><a href="#4-measuring-node-impurity"><span class="toc-num">4</span>Measuring node impurity</a></li>
+<li><a href="#5-scoring-a-split"><span class="toc-num">5</span>Scoring a split</a></li>
+<li><a href="#6-generating-candidate-splits-for-each-feature-type"><span class="toc-num">6</span>Generating candidate splits for each feature type</a></li>
+<li><a href="#7-worked-example-building-a-tree-by-hand"><span class="toc-num">7</span>Worked example: building a tree by hand</a></li>
+<li><a href="#8-the-growth-algorithm-formally"><span class="toc-num">8</span>The growth algorithm, formally</a></li>
+<li><a href="#9-leaf-predictions-from-counts-to-probabilities-to-decisions"><span class="toc-num">9</span>Leaf predictions: from counts to probabilities to decisions</a></li>
+<li><a href="#10-the-statistics-underneath-what-a-tree-really-optimises"><span class="toc-num">10</span>The statistics underneath: what a tree really optimises</a></li>
+<li><a href="#11-overfitting-and-the-biasvariance-trade-off"><span class="toc-num">11</span>Overfitting and the bias–variance trade-off</a></li>
+<li><a href="#12-pre-pruning-stopping-early"><span class="toc-num">12</span>Pre-pruning: stopping early</a></li>
+<li><a href="#13-post-pruning-growing-big-then-cutting-back"><span class="toc-num">13</span>Post-pruning: growing big, then cutting back</a></li>
+<li><a href="#14-practical-complications"><span class="toc-num">14</span>Practical complications</a></li>
+<li><a href="#15-computational-complexity"><span class="toc-num">15</span>Computational complexity</a></li>
+<li><a href="#16-evaluating-the-classifier"><span class="toc-num">16</span>Evaluating the classifier</a></li>
+<li><a href="#17-interpreting-the-tree"><span class="toc-num">17</span>Interpreting the tree</a></li>
+<li><a href="#18-limitations-and-where-ensembles-come-in"><span class="toc-num">18</span>Limitations and where ensembles come in</a></li>
+<li><a href="#19-implementation-blueprint-specification-not-code"><span class="toc-num">19</span>Implementation blueprint (specification, not code)</a></li>
+<li><a href="#20-formula-sheet"><span class="toc-num">20</span>Formula sheet</a></li>
+<li><a href="#21-glossary"><span class="toc-num">21</span>Glossary</a></li>
+<li><a href="#22-references"><span class="toc-num">22</span>References</a></li>
+    </ol></details>
+    <div class="prose">
+<h2 id="how-to-use-this-document">How to use this document</h2>
+<p>This guide is written for someone who wants to <strong>understand a decision tree well enough to implement one without a library</strong> — but it deliberately contains <strong>no code</strong>. Every component you would need to build is specified mathematically: what goes in, what comes out, and why it works. When you later write the implementation (in any language), each function you write should map to a numbered section here.</p>
+<ul>
+<li><strong>Sections 1–3</strong> set up the problem and the model.</li>
+<li><strong>Sections 4–6</strong> derive the splitting machinery (impurity, gain, candidate splits).</li>
+<li><strong>Section 7</strong> builds a complete tree <em>by hand</em> on a 14-patient dataset. Every number is shown.</li>
+<li><strong>Sections 8–10</strong> formalise the growth algorithm, leaf predictions, and the statistical meaning of what the tree optimises.</li>
+<li><strong>Sections 11–13</strong> deal with overfitting and pruning.</li>
+<li><strong>Sections 14–18</strong> cover practical complications, complexity, evaluation, interpretation and limitations.</li>
+<li><strong>Section 19</strong> is an implementation blueprint: a component-by-component specification and a test checklist.</li>
+<li><strong>Section 20</strong> is a one-page formula sheet.</li>
+<li><strong>Seven labs</strong> are embedded where they are needed: the impurity explorer (§4), the split calculator (§5), the threshold scanner and tree builder (§7), the decision-threshold lab (§9), the overfitting sandbox (§11) and the pruning lab (§13).</li>
+</ul>
+<p><strong>Prerequisites:</strong> basic probability (Bernoulli/binomial distributions, conditional probability), logarithms, and summation notation. Everything else is derived.</p>
+<aside class="callout">
+<p><strong>Figures and labs.</strong> Static figures are drawn from fixed data; charts built from synthetic data say so in their captions. Panels marked <strong>Lab</strong> are live: they recompute every number in your browser, so you can change the inputs and watch the mathematics respond. Every number in the worked example comes from the 14-row table in Section 7 and can be verified with a calculator.</p>
+</aside>
+
+<h2 id="notation">Notation</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>\(N\)</td>
+<td>number of training samples</td>
+</tr>
+<tr>
+<td>\(d\)</td>
+<td>number of features</td>
+</tr>
+<tr>
+<td>\(\mathbf{x}_i \in \mathcal{X}\)</td>
+<td>feature vector of sample \(i\); \(x_{ij}\) is its \(j\)-th feature</td>
+</tr>
+<tr>
+<td>\(y_i \in \lbrace 0, 1\rbrace\)</td>
+<td>binary label of sample \(i\) (1 = "positive" class)</td>
+</tr>
+<tr>
+<td>\(\mathcal{D} = \lbrace(\mathbf{x}_i, y_i)\rbrace_{i=1}^{N}\)</td>
+<td>training set</td>
+</tr>
+<tr>
+<td>\(t\)</td>
+<td>a node of the tree; \(S_t \subseteq \mathcal{D}\) is the set of samples reaching it</td>
+</tr>
+<tr>
+<td>\(n_t\)</td>
+<td>number of samples at node \(t\)</td>
+</tr>
+<tr>
+<td>\(n_{t0},\ n_{t1}\)</td>
+<td>number of class-0 and class-1 samples at node \(t\) (\(n_{t0}+n_{t1}=n_t\))</td>
+</tr>
+<tr>
+<td>\(p_t = n_{t1}/n_t\)</td>
+<td>proportion of class 1 at node \(t\)</td>
+</tr>
+<tr>
+<td>\(t_L,\ t_R\)</td>
+<td>left and right children of \(t\)</td>
+</tr>
+<tr>
+<td>\(w_L = n_{t_L}/n_t\), \(w_R = n_{t_R}/n_t\)</td>
+<td>child weights (\(w_L + w_R = 1\))</td>
+</tr>
+<tr>
+<td>\(I(\cdot)\)</td>
+<td>a generic impurity function; \(G\) = Gini, \(H\) = entropy, \(E\) = misclassification error</td>
+</tr>
+<tr>
+<td>\(\Delta I(s, t)\)</td>
+<td>impurity decrease produced by split \(s\) at node \(t\)</td>
+</tr>
+<tr>
+<td>\(T\)</td>
+<td>a tree; \(\tilde T\) its set of leaves; \(\lvert \tilde T\rvert\) the number of leaves</td>
+</tr>
+<tr>
+<td>\(R_m\)</td>
+<td>the region of feature space owned by leaf \(m\)</td>
+</tr>
+<tr>
+<td>\(\hat p_m\)</td>
+<td>estimated \(P(y=1 \mid \mathbf{x} \in R_m)\)</td>
+</tr>
+<tr>
+<td>\(\mathbb{1}[\cdot]\)</td>
+<td>indicator: 1 if the condition is true, 0 otherwise</td>
+</tr>
+<tr>
+<td>\(\log_2\), \(\ln\)</td>
+<td>base-2 and natural logarithms (\(0 \log 0 := 0\) by continuity)</td>
+</tr>
+</tbody>
+</table></div>
+
+<h2 id="1-the-binary-classification-problem"><span class="secnum">1</span>The binary classification problem</h2>
+<h3 id="11-setup">1.1 Setup</h3>
+<p>We observe \(N\) labelled examples \((\mathbf{x}_i, y_i)\), assumed to be independent draws from an unknown joint distribution \(P(\mathbf{x}, y)\). We want a function \(f : \mathcal{X} \to \lbrace 0,1\rbrace\) (a <strong>classifier</strong>) or, better, a function \(\hat\eta : \mathcal{X} \to [0,1]\) (a <strong>probability estimator</strong>) such that</p>
+<div class="eq">\[\hat\eta(\mathbf{x}) \approx \eta(\mathbf{x}) := P(y = 1 \mid \mathbf{x}).\]</div>
+<h3 id="12-what-good-means-risk">1.2 What "good" means: risk</h3>
+<p>With the 0–1 loss \(\ell(y, \hat y) = \mathbb{1}[y \neq \hat y]\), the <strong>risk</strong> (expected error rate) of a classifier is</p>
+<div class="eq">\[\mathcal{R}(f) = \mathbb{E}_{(\mathbf{x},y)}\big[\mathbb{1}[f(\mathbf{x}) \neq y]\big] = P\big(f(\mathbf{x}) \neq y\big).\]</div>
+<p>Conditioning on \(\mathbf{x}\), predicting 1 incurs expected loss \(1-\eta(\mathbf{x})\) and predicting 0 incurs \(\eta(\mathbf{x})\). The loss is minimised point-wise by the <strong>Bayes classifier</strong></p>
+<div class="eq">\[f^{\star}(\mathbf{x}) = \mathbb{1}\left[\eta(\mathbf{x}) &gt; \tfrac{1}{2}\right], \qquad \mathcal{R}(f^{\star}) = \mathbb{E}_{\mathbf{x}}\big[\min\lbrace\eta(\mathbf{x}),\,1-\eta(\mathbf{x})\rbrace\big].\]</div>
+<p>Every classifier — a tree included — is an attempt to approximate \(\eta(\mathbf{x})\) well enough that thresholding it reproduces \(f^{\star}\). We never see \(\eta\); we only see \(\mathcal{D}\). So we minimise the <strong>empirical risk</strong></p>
+<div class="eq">\[\hat{\mathcal{R}}(f) = \frac{1}{N}\sum_{i=1}^{N}\mathbb{1}[f(\mathbf{x}_i) \neq y_i]\]</div>
+<p>over some restricted family of functions — here, the family of decision trees — and then guard against the gap between \(\hat{\mathcal{R}}\) and \(\mathcal{R}\) (Sections 11–13).</p>
+<aside class="callout">
+<p><strong>Key idea.</strong> The expression \(\min\lbrace\eta, 1-\eta\rbrace\) above is the <em>misclassification impurity</em> of Section 4. Impurity functions are not arbitrary heuristics: they are local, per-region versions of the risk we ultimately care about.</p>
+</aside>
+
+<h2 id="2-what-a-decision-tree-is"><span class="secnum">2</span>What a decision tree is</h2>
+<h3 id="21-anatomy">2.1 Anatomy</h3>
+<p>A decision tree is a rooted binary tree in which</p>
+<ul>
+<li>every <strong>internal node</strong> holds a yes/no <strong>test</strong> on one feature (e.g. \(x_j \le \theta\) or \(x_j \in A\)),</li>
+<li>every <strong>edge</strong> corresponds to an outcome of its parent's test,</li>
+<li>every <strong>leaf</strong> holds a <strong>prediction</strong> (a class label and, ideally, a probability).</li>
+</ul>
+<p>A new example is classified by starting at the root, answering the test, following the matching branch, and repeating until it reaches a leaf.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig01_tree_anatomy.svg" alt="Anatomy of a binary decision tree: root, internal nodes, branches and leaves arranged by depth" loading="lazy"></div><figcaption><span class="fig-num">Figure 1.</span> Anatomy of a binary decision tree. Depth is the number of edges from the root. Every root-to-leaf path is a conjunction of tests — an IF–THEN rule.</figcaption></figure>
+<h3 id="22-the-tree-as-a-partition-of-feature-space">2.2 The tree as a partition of feature space</h3>
+<p>Each test splits the current region of feature space in two. A tree with \(M\) leaves therefore partitions \(\mathcal{X}\) into \(M\) disjoint regions \(R_1, \dots, R_M\) with \(\bigcup_m R_m = \mathcal{X}\). Because each test involves a single feature compared against a constant, every region is an <strong>axis-aligned (hyper-)rectangle</strong> (for numeric features).</p>
+<p>The model is a <strong>piecewise-constant function</strong>:</p>
+<div class="eq">\[\boxed{\;\hat\eta(\mathbf{x}) = \sum_{m=1}^{M} \hat p_m \,\mathbb{1}[\mathbf{x} \in R_m], \qquad f(\mathbf{x}) = \sum_{m=1}^{M} c_m \,\mathbb{1}[\mathbf{x} \in R_m]\;}\]</div>
+<p>where \(\hat p_m\) is the leaf's estimated class-1 probability and \(c_m \in \lbrace 0,1\rbrace\) its predicted label.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig02_partition_view.svg" alt="Left: a 2-D feature space cut into four axis-aligned rectangles; right: the equivalent decision tree" loading="lazy"></div><figcaption><span class="fig-num">Figure 2.</span> Two views of the same model (synthetic data). Left: three axis-aligned cuts produce four rectangles \(R_1\)–\(R_4\), each assigned a constant prediction. Right: the tree that encodes those cuts. Note that the second-level cut is different on each side of \(x_1 = 0.6\) — a tree can model interactions.</figcaption></figure>
+<h3 id="23-learning-a-tree-means-learning-two-things">2.3 Learning a tree means learning two things</h3>
+<ol>
+<li><strong>The structure</strong> — which feature and threshold to test at each node, i.e. the regions \(R_m\).</li>
+<li><strong>The leaf values</strong> — the \(\hat p_m\) (and \(c_m\)) inside each region.</li>
+</ol>
+<p>Given the regions, the leaf values have a closed-form optimum (Section 9). All of the difficulty is in the structure.</p>
+
+<h2 id="3-why-trees-are-grown-greedily"><span class="secnum">3</span>Why trees are grown greedily</h2>
+<h3 id="31-the-ideal-problem-is-intractable">3.1 The ideal problem is intractable</h3>
+<p>The ideal would be: <em>find the tree with at most \(M\) leaves that minimises empirical risk.</em> This problem is NP-complete (Hyafil &amp; Rivest, 1976). To see the scale, count binary tree <strong>shapes</strong> alone: the number of distinct shapes with \(M\) leaves is the Catalan number</p>
+<div class="eq">\[C_{M-1} = \frac{1}{M}\binom{2M-2}{M-1}, \qquad C_{9} = 4{,}862 \ \ (M = 10), \qquad C_{19} \approx 1.77 \times 10^{9}\ \ (M=20).\]</div>
+<p>Each of the \(M-1\) internal nodes can then choose any of the \(K\) available candidate splits, giving on the order of \(C_{M-1}\,K^{M-1}\) labelled trees. With \(K = 1{,}000\) candidate splits and \(M = 10\) leaves that is about \(4.9 \times 10^{30}\) trees.</p>
+<h3 id="32-the-greedy-solution-top-down-induction">3.2 The greedy solution: top-down induction</h3>
+<p>Every classical algorithm (Hunt's algorithm, ID3, C4.5, CART) uses the same idea, called <strong>top-down induction of decision trees</strong> or <strong>recursive partitioning</strong>:</p>
+<ol>
+<li>At the current node, evaluate every candidate split <strong>in isolation</strong>.</li>
+<li>Choose the one that most reduces some measure of "mixedness" (impurity) in the children.</li>
+<li>Partition the data and <strong>recurse</strong> independently into each child.</li>
+<li>Stop when a stopping rule fires; the node becomes a leaf.</li>
+</ol>
+<p>This is a <strong>greedy</strong> (myopic, one-step look-ahead) search: it never revisits a split, and it never considers whether a split that looks poor now would enable excellent splits later. The cost of this shortcut is examined in Section 18.2; the benefit is that a tree on \(N\) samples and \(d\) features can be grown in roughly \(O(d\,N\log N \cdot \text{depth})\) time (Section 15).</p>
+<p>What remains is to define precisely (a) how to measure mixedness, (b) how to score a split, (c) which splits to consider, and (d) when to stop. The next three sections do (a)–(c).</p>
+
+<h2 id="4-measuring-node-impurity"><span class="secnum">4</span>Measuring node impurity</h2>
+<h3 id="41-what-an-impurity-function-must-satisfy">4.1 What an impurity function must satisfy</h3>
+<p>For a binary problem the class distribution at node \(t\) is fully described by \(p = p_t \in [0,1]\). An impurity function \(\phi(p)\) should satisfy (Breiman et al., 1984):</p>
+<ol>
+<li><strong>Maximal when maximally mixed:</strong> \(\phi\) attains its maximum at \(p = \tfrac12\).</li>
+<li><strong>Zero when pure:</strong> \(\phi(0) = \phi(1) = 0\).</li>
+<li><strong>Symmetric:</strong> \(\phi(p) = \phi(1-p)\) — relabelling the classes changes nothing.</li>
+<li><strong>Strictly concave</strong> on \([0,1]\) — the property that makes splitting well-behaved (Section 5.2).</li>
+</ol>
+<p>Three functions are in common use.</p>
+<h3 id="42-misclassification-error">4.2 Misclassification error</h3>
+<p>If a node predicts its majority class, the fraction of its training samples it gets wrong is</p>
+<div class="eq">\[E(p) = \min(p,\ 1-p) = \tfrac12 - \left|p - \tfrac12\right|.\]</div>
+<p>It is the most direct measure (it <em>is</em> the local empirical risk), but it is only <strong>piecewise linear</strong>, not strictly concave. Section 5.2 shows why this makes it a poor splitting criterion even though it is a perfectly good pruning criterion.</p>
+<h3 id="43-gini-impurity">4.3 Gini impurity</h3>
+<div class="eq">\[G(p) = 1 - p^2 - (1-p)^2 = 2p(1-p).\]</div>
+<p>(For \(K\) classes: \(G = 1 - \sum_k p_k^2 = \sum_{k \neq k'} p_k p_{k'}\).) Gini impurity has three equivalent interpretations, each useful:</p>
+<p><strong>(a) Probability of a random mismatch.</strong> Draw a sample from the node and, independently, a label at random from the node's label distribution. The probability that the label is wrong is</p>
+<div class="eq">\[P(\text{mismatch}) = p(1-p) + (1-p)p = 2p(1-p) = G(p).\]</div>
+<p><strong>(b) Twice the Bernoulli variance.</strong> If \(Y \sim \text{Bernoulli}(p)\) then \(\operatorname{Var}(Y) = p(1-p)\), so \(G(p) = 2\operatorname{Var}(Y)\). Minimising Gini is minimising within-node variance of the 0/1 label — exactly what a regression tree does with squared error. (Section 10.2 makes this precise.)</p>
+<p><strong>(c) Expected Brier score.</strong> If the node predicts probability \(p\) for every sample in it, the mean squared error (Brier score) of those predictions is</p>
+<div class="eq">\[\frac{1}{n_t}\sum_{i \in S_t} (y_i - p)^2 = p(1-p)^2 + (1-p)p^2 = p(1-p) = \tfrac12 G(p).\]</div>
+<p>Derivatives: \(G'(p) = 2 - 4p\) and \(G''(p) = -4 &lt; 0\), so \(G\) is strictly concave with maximum \(G(\tfrac12) = \tfrac12\).</p>
+<h3 id="44-entropy">4.4 Entropy</h3>
+<p>From information theory, the <strong>surprisal</strong> of an event with probability \(q\) is \(-\log_2 q\) bits. The <strong>entropy</strong> is the expected surprisal of the label:</p>
+<div class="eq">\[H(p) = -p\log_2 p - (1-p)\log_2(1-p).\]</div>
+<p>\(H(p)\) is the average number of bits needed to encode the label of a sample drawn from the node using an optimal code. A pure node needs 0 bits; a 50/50 node needs exactly 1 bit.</p>
+<p>Derivatives: \(H'(p) = \log_2\frac{1-p}{p}\) and \(H''(p) = -\frac{1}{p(1-p)\ln 2} &lt; 0\) — strictly concave, maximum \(H(\tfrac12) = 1\).</p>
+<p><strong>Relationship to Gini.</strong> Measured in nats (\(H_e = H \ln 2\)), use the inequality \(\ln q \le q - 1\), i.e. \(-\ln q \ge 1 - q\):</p>
+<div class="eq">\[H_e(p) = p(-\ln p) + (1-p)(-\ln(1-p)) \ \ge\ p(1-p) + (1-p)p = G(p).\]</div>
+<p>So <strong>Gini is the first-order Taylor approximation of entropy</strong> (expanding \(-\ln q\) around \(q = 1\)), and the two curves have almost the same shape once rescaled (try the impurity explorer below). In practice they choose the same split most of the time; Section 7 shows a case where they disagree on the runner-up.</p>
+<h3 id="45-comparison">4.5 Comparison</h3>
+<section class="lab" id="lab-impurity" aria-label="Impurity explorer">
+  <div class="lab-head"><span class="chip">Lab</span><h4>Impurity explorer</h4></div>
+  <p class="lab-note">Move the class-1 proportion and read off all three impurities. The node of 20 samples on the right shows what that proportion looks like as data.</p>
+  <div class="controls">
+    <div class="ctl"><label for="imp-p">p</label><input type="range" id="imp-p" min="0" max="1" step="0.01" value="0.3"><span class="readout" id="imp-pv">0.30</span></div>
+    <div class="ctl"><input type="checkbox" id="imp-half"><label for="imp-half">Also show H/2 (entropy rescaled to Gini's range)</label></div>
+  </div>
+  <div class="grid32">
+    <div class="chart-wrap"><svg class="chart" id="imp-svg" viewBox="0 0 520 300" role="img" aria-label="Impurity curves with a marker at the chosen p"></svg>
+      <div class="legend"><span><i class="sw" style="background:var(--violet)"></i>Entropy H(p), bits</span><span><i class="sw" style="background:var(--accent)"></i>Gini G(p)</span><span><i class="sw" style="background:var(--muted)"></i>Misclassification E(p)</span></div>
+    </div>
+    <div class="panel">
+      <h5>At this node</h5>
+      <dl class="kv" id="imp-kv"></dl>
+      <svg id="imp-dots" viewBox="0 0 220 92" style="width:100%;max-width:260px;margin-top:0.7rem" role="img" aria-label="Twenty samples coloured by class"></svg>
+      <p class="note-sm" id="imp-note"></p>
+    </div>
+  </div>
+</section>
+
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: right;">\(p\)</th>
+<th style="text-align: right;">\(E(p)\)</th>
+<th style="text-align: right;">\(G(p)\)</th>
+<th style="text-align: right;">\(H(p)\) (bits)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.050</td>
+<td style="text-align: right;">0.095</td>
+<td style="text-align: right;">0.286</td>
+</tr>
+<tr>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">0.100</td>
+<td style="text-align: right;">0.180</td>
+<td style="text-align: right;">0.469</td>
+</tr>
+<tr>
+<td style="text-align: right;">0.20</td>
+<td style="text-align: right;">0.200</td>
+<td style="text-align: right;">0.320</td>
+<td style="text-align: right;">0.722</td>
+</tr>
+<tr>
+<td style="text-align: right;">0.30</td>
+<td style="text-align: right;">0.300</td>
+<td style="text-align: right;">0.420</td>
+<td style="text-align: right;">0.881</td>
+</tr>
+<tr>
+<td style="text-align: right;">0.40</td>
+<td style="text-align: right;">0.400</td>
+<td style="text-align: right;">0.480</td>
+<td style="text-align: right;">0.971</td>
+</tr>
+<tr>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">0.500</td>
+<td style="text-align: right;">0.500</td>
+<td style="text-align: right;">1.000</td>
+</tr>
+</tbody>
+</table></div>
+<p>Values for \(p &gt; 0.5\) mirror these by symmetry. Note how entropy rises much more steeply near \(p = 0\): entropy <strong>penalises a small amount of contamination more heavily</strong> than Gini does, which makes it slightly keener on splits that produce one very pure child.</p>
+
+<h2 id="5-scoring-a-split"><span class="secnum">5</span>Scoring a split</h2>
+<h3 id="51-impurity-decrease">5.1 Impurity decrease</h3>
+<p>A split \(s\) sends the \(n_t\) samples at node \(t\) to two children, \(t_L\) (test true) and \(t_R\) (test false). Its quality is the <strong>impurity decrease</strong>:</p>
+<div class="eq">\[\boxed{\;\Delta I(s, t) = I(t) - w_L\, I(t_L) - w_R\, I(t_R), \qquad w_L = \frac{n_{t_L}}{n_t},\ w_R = \frac{n_{t_R}}{n_t}\;}\]</div>
+<p>The children's impurities are <strong>weighted by their share of the samples</strong>, so a perfectly pure child containing one sample cannot buy a large gain on its own.</p>
+<ul>
+<li>With \(I = H\), \(\Delta I\) is called <strong>information gain</strong> (ID3, C4.5).</li>
+<li>With \(I = G\), it is the <strong>Gini decrease</strong> or <strong>Gini gain</strong> (CART).</li>
+</ul>
+<p>The best split at a node is \(s^{\star} = \arg\max_s \Delta I(s,t)\). Since \(I(t)\) is the same for every candidate at a given node, maximising \(\Delta I\) is equivalent to <strong>minimising the weighted child impurity</strong> \(w_L I(t_L) + w_R I(t_R)\).</p>
+<h3 id="52-why-strict-concavity-matters">5.2 Why strict concavity matters</h3>
+<p>The class proportion of the parent is the weighted average of the children's proportions:</p>
+<div class="eq">\[p_t = \frac{n_{t_L}p_{t_L} + n_{t_R}p_{t_R}}{n_t} = w_L\,p_{t_L} + w_R\,p_{t_R}.\]</div>
+<p>By <strong>Jensen's inequality</strong>, for any concave \(\phi\),</p>
+<div class="eq">\[\phi(p_t) = \phi\big(w_L p_{t_L} + w_R p_{t_R}\big) \ \ge\ w_L\,\phi(p_{t_L}) + w_R\,\phi(p_{t_R}) \quad\Longrightarrow\quad \Delta I \ge 0.\]</div>
+<p>So <strong>no split can ever increase impurity</strong>. If \(\phi\) is <em>strictly</em> concave, equality holds only when \(p_{t_L} = p_{t_R}\) — i.e. <strong>every split that changes the class proportions at all produces a strictly positive gain</strong>.</p>
+<p>Misclassification error is concave but <em>not strictly</em>: it is linear on \([0, \tfrac12]\) and on \([\tfrac12, 1]\). If both children lie on the same side of \(\tfrac12\) the chord lies exactly on the curve and the gain is zero, even when the split is genuinely informative:</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig04_concavity.svg" alt="Two panels comparing misclassification error and Gini for the same split: zero gain versus positive gain" loading="lazy"></div><figcaption><span class="fig-num">Figure 3.</span> A parent with \(p = 0.70\) split into two equal-sized children with \(p_L = 0.55\) and \(p_R = 0.85\). Both children still predict class 1, so the number of training errors doesn't change and misclassification gain is exactly 0. Gini (strictly concave) sees the right child become much purer and rewards the split with \(\Delta G = 0.045\). A greedy grower using \(E\) would stop here and never discover the useful splits that this one enables.</figcaption></figure>
+<h3 id="53-a-closed-form-for-the-gini-decrease">5.3 A closed form for the Gini decrease</h3>
+<p>For binary labels the Gini decrease simplifies beautifully. Using \(G(p) = 2p - 2p^2\) and \(p_t = w_L p_L + w_R p_R\) (dropping the \(t\) subscripts on the children), the linear terms cancel and</p>
+<div class="eq">\[\Delta G = 2\left[w_L p_L^2 + w_R p_R^2 - p_t^2\right] = 2\,\big[\underbrace{w_L p_L^2 + w_R p_R^2 - (w_L p_L + w_R p_R)^2}_{\text{weighted variance of the child proportions}}\big]\]</div>
+<div class="eq">\[\boxed{\;\Delta G = 2\, w_L\, w_R\, (p_L - p_R)^2\;}\]</div>
+<p>This one line tells you exactly what a good split looks like:</p>
+<ul>
+<li>\((p_L - p_R)^2\): the <strong>children's class rates should differ as much as possible</strong>;</li>
+<li>\(w_L w_R\) (maximised at \(w_L = w_R = \tfrac12\)): <strong>balanced splits are preferred</strong> over splits that peel off a handful of samples.</li>
+</ul>
+<section class="lab" id="lab-splitlab" aria-label="Split calculator">
+  <div class="lab-head"><span class="chip">Lab</span><h4>Split calculator</h4></div>
+  <p class="lab-note">Enter the class counts that a split sends to each child. Every quantity in Sections 5 and 10.3 is recomputed: impurity decrease under all three criteria, the closed form, and the significance tests that treat the split as a 2 × 2 table.</p>
+  <div class="controls">
+    <div class="ctl"><span class="lbl">Left child</span><label for="sl-l0" class="mono">n₀</label><input type="number" id="sl-l0" min="0" max="500" value="0"><label for="sl-l1" class="mono">n₁</label><input type="number" id="sl-l1" min="0" max="500" value="5"></div>
+    <div class="ctl"><span class="lbl">Right child</span><label for="sl-r0" class="mono">n₀</label><input type="number" id="sl-r0" min="0" max="500" value="6"><label for="sl-r1" class="mono">n₁</label><input type="number" id="sl-r1" min="0" max="500" value="3"></div>
+  </div>
+  <div class="controls">
+    <div class="ctl"><span class="lbl">Presets</span>
+      <button class="btn small" data-preset="0,5,6,3">Root split of §7</button>
+      <button class="btn small" data-preset="9,11,3,17">Concavity example (§5.2)</button>
+      <button class="btn small" data-preset="0,3,1,0">Deepest split of §7</button>
+      <button class="btn small" data-preset="30,40,30,40">Useless split</button>
+      <button class="btn small" data-preset="1,0,50,60">Peel off one sample</button>
+    </div>
+  </div>
+  <div class="bars" id="sl-bars" aria-hidden="true"></div>
+  <div class="legend"><span><i class="sw box" style="background:var(--c0)"></i>class 0</span><span><i class="sw box" style="background:var(--c1)"></i>class 1</span><span>bar width ∝ child size</span></div>
+  <div class="stack" style="margin-top:0.6rem">
+    <div class="table-wrap"><table id="sl-nodes"></table></div>
+    <div class="table-wrap"><table id="sl-gains"></table></div>
+  </div>
+  <p class="explain" id="sl-explain"></p>
+</section>
+
+<h3 id="54-information-gain-is-mutual-information">5.4 Information gain is mutual information</h3>
+<p>Let \(Z = \mathbb{1}[\text{test is true}]\) for a sample drawn from node \(t\). Then</p>
+<div class="eq">\[\mathrm{IG}(s,t) = H(Y) - H(Y \mid Z) = \mathcal{I}(Y; Z),\]</div>
+<p>the <strong>mutual information</strong> between the label and the outcome of the test, in bits. It measures how many bits of uncertainty about \(Y\) are removed by knowing which side of the split a sample falls on. Mutual information is symmetric, non-negative, and zero exactly when \(Y\) and \(Z\) are independent — which is the statistical content of "this split is useless".</p>
+<h3 id="55-gain-ratio-correcting-the-bias-towards-many-valued-splits">5.5 Gain ratio: correcting the bias towards many-valued splits</h3>
+<p>If a categorical feature with \(L\) levels is split <strong>multi-way</strong> (one child per level), information gain is biased towards large \(L\). In the extreme, a unique patient ID column splits every sample into its own pure leaf, so \(\mathrm{IG} = H(t)\), the maximum possible, while generalising not at all.</p>
+<p>C4.5 divides by the <strong>split information</strong> — the entropy of the partition itself:</p>
+<div class="eq">\[\mathrm{SplitInfo}(s,t) = -\sum_{k} \frac{n_{t_k}}{n_t}\log_2\frac{n_{t_k}}{n_t}, \qquad \mathrm{GainRatio}(s,t) = \frac{\mathrm{IG}(s,t)}{\mathrm{SplitInfo}(s,t)}.\]</div>
+<p>A split into \(n_t\) singletons has \(\mathrm{SplitInfo} = \log_2 n_t\), heavily penalised. (C4.5 only considers splits whose IG is at least average, to avoid rewarding splits whose SplitInfo is near zero.) Section 14.4 gives numbers from the worked example. For <strong>binary</strong> splits — the focus of this guide — the bias is much milder, because SplitInfo \(\le 1\) bit.</p>
+
+<h2 id="6-generating-candidate-splits-for-each-feature-type"><span class="secnum">6</span>Generating candidate splits for each feature type</h2>
+<p>The search at a node is: <em>for each feature, enumerate its candidate splits, score each, keep the best overall.</em> What counts as a candidate depends on the feature type.</p>
+<h3 id="61-binary-features">6.1 Binary features</h3>
+<p>One candidate: \(x_j = 1\) vs \(x_j = 0\). Once a binary feature has been used on a path, it is constant in the descendants and offers no further splits.</p>
+<h3 id="62-continuous-and-ordinal-features">6.2 Continuous (and ordinal) features</h3>
+<p><strong>Candidate thresholds.</strong> A split is \(x_j \le \theta\). Only the <em>ordering</em> of the samples matters, so if the node contains \(u\) distinct values \(v_{(1)} &lt; v_{(2)} &lt; \dots &lt; v_{(u)}\), only \(u - 1\) splits are distinct. By convention the threshold is placed at the midpoint</p>
+<div class="eq">\[\theta_k = \frac{v_{(k)} + v_{(k+1)}}{2}, \qquad k = 1, \dots, u-1.\]</div>
+<p><strong>Efficient scan.</strong> Sort the node's samples by \(x_j\) once (\(O(n_t \log n_t)\)). Sweep the thresholds left to right, keeping running counts \((n_{L0}, n_{L1})\); moving one sample from right to left updates the counts in \(O(1)\), and each child impurity is a function of its two counts only. Evaluating all thresholds therefore costs \(O(n_t)\) after sorting.</p>
+<p><strong>Only boundary points matter.</strong> Fayyad &amp; Irani (1992) proved that, for entropy (and the argument extends to any strictly concave impurity), the optimal threshold always lies at a <strong>boundary point</strong>: a midpoint between two consecutive sorted values whose classes differ. Inside a run of same-class samples the weighted child impurity is a concave function of the threshold position, so its minimum is at one end of the run. This can shrink the candidate set dramatically; The threshold scanner in Section 7.5 shows it on real numbers.</p>
+<p><strong>Ordinal features</strong> (e.g. <em>Low &lt; Medium &lt; High</em>) are treated exactly like continuous ones using their rank.</p>
+<h3 id="63-nominal-categorical-features">6.3 Nominal categorical features</h3>
+<p>A nominal feature with \(L\) unordered levels can be split into two non-empty groups in</p>
+<div class="eq">\[\frac{2^L - 2}{2} = 2^{L-1} - 1\]</div>
+<p>ways (e.g. 511 ways for \(L = 10\), about \(5 \times 10^5\) for \(L = 20\)). Exhaustive search is exponential.</p>
+<p><strong>The ordering theorem (Fisher 1958; Breiman et al. 1984).</strong> For a <em>binary</em> target and any concave impurity, sort the levels by their class-1 rate \(\hat p(\text{level}) = n_1(\text{level})/n(\text{level})\). Then the optimal binary partition is one of the \(L - 1\) <strong>contiguous</strong> splits of this sorted list:</p>
+<div class="eq">\[\lbrace \ell_{(1)}, \dots, \ell_{(k)}\rbrace \ \big|\ \lbrace \ell_{(k+1)}, \dots, \ell_{(L)}\rbrace, \qquad k = 1, \dots, L-1.\]</div>
+<p><strong>Intuition from Section 5.3.</strong> \(\Delta G = 2 w_L w_R (p_L - p_R)^2\) wants the two groups' rates to be as far apart as possible. Mixing a high-rate level into the low-rate group (while leaving a lower-rate level in the high group) can only pull the rates together — so groups should never "interleave" in the sorted order.</p>
+<p>This reduces the work from \(2^{L-1}-1\) evaluations to \(L-1\) — the same as a continuous feature. Figure 4 illustrates it on the worked example.</p>
+<aside class="callout">
+<p><strong>Caution.</strong> The theorem is specific to binary (or regression) targets. For three or more classes there is no such ordering shortcut in general.</p>
+</aside>
+<h3 id="64-binary-versus-multi-way-splits">6.4 Binary versus multi-way splits</h3>
+<p>ID3/C4.5 split nominal features <strong>multi-way</strong> (one child per level); CART always splits <strong>binary</strong>. Binary splits are preferred in this guide because they (i) fragment the data more slowly, (ii) can still represent any multi-way split as a sequence of binary ones, (iii) avoid the many-values bias of Section 5.5, and (iv) give one uniform node structure to implement.</p>
+<h3 id="65-how-many-candidates-at-a-node">6.5 How many candidates at a node?</h3>
+<p>With binary features, continuous features with \(u_j\) distinct values at the node, and nominal features with \(L_j\) levels present at the node, the number of candidate splits is</p>
+<div class="eq">\[K_t = \#\text{binary} + \sum_{j\,\in\,\text{continuous}} (u_j - 1) + \sum_{j\,\in\,\text{nominal}} (L_j - 1).\]</div>
+
+<h2 id="7-worked-example-building-a-tree-by-hand"><span class="secnum">7</span>Worked example: building a tree by hand</h2>
+<h3 id="71-the-data">7.1 The data</h3>
+<p>A small hospital audit records 14 discharged patients. The target is <strong>readmitted within 30 days</strong> (\(y = 1\)) or not (\(y = 0\)). There are three features, deliberately of three different types:</p>
+<ul>
+<li><strong>Age</strong> — continuous (years);</li>
+<li><strong>Diabetes</strong> — binary (Yes/No);</li>
+<li><strong>Prior admissions</strong> in the past year — categorical with three levels (Low / Medium / High).</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: right;">ID</th>
+<th style="text-align: right;">Age</th>
+<th style="text-align: center;">Diabetes</th>
+<th style="text-align: center;">Prior admissions</th>
+<th style="text-align: center;">Readmitted \(y\)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">45</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Low</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">52</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Low</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">61</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Medium</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">70</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">High</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">38</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Medium</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">66</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">High</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">58</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Low</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">73</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Medium</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">49</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Medium</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">68</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Low</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">44</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">High</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">55</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">High</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;">77</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">High</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">67</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Low</td>
+<td style="text-align: center;">0</td>
+</tr>
+</tbody>
+</table></div>
+<p>Counts: \(n = 14\), \(n_1 = 8\) readmitted, \(n_0 = 6\) not readmitted. We write node counts as \([n_0 \mid n_1]\), so the root is \([6 \mid 8]\).</p>
+<p>We use <strong>Gini</strong> as the splitting criterion and report <strong>entropy</strong> alongside for comparison. Stopping rule: split until nodes are pure (we prune later, in Section 13).</p>
+<h3 id="72-step-0-impurity-of-the-root">7.2 Step 0 — impurity of the root</h3>
+<div class="eq">\[p_{\text{root}} = \tfrac{8}{14} = 0.5714\]</div>
+<div class="eq">\[G(\text{root}) = 1 - \left(\tfrac{6}{14}\right)^2 - \left(\tfrac{8}{14}\right)^2 = 1 - \tfrac{36}{196} - \tfrac{64}{196} = \tfrac{96}{196} = \tfrac{24}{49} = 0.4898\]</div>
+<div class="eq">\[H(\text{root}) = -\tfrac{6}{14}\log_2\tfrac{6}{14} - \tfrac{8}{14}\log_2\tfrac{8}{14} = 0.4286 \times 1.2224 + 0.5714 \times 0.8074 = 0.5239 + 0.4613 = 0.9852 \text{ bits}\]</div>
+<p>Any split must be judged against these baselines.</p>
+<h3 id="73-step-1a-candidate-diabetes-binary-feature">7.3 Step 1a — candidate: Diabetes (binary feature)</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Child</th>
+<th>Patients</th>
+<th style="text-align: center;">Counts \([n_0 \mid n_1]\)</th>
+<th style="text-align: right;">\(p\)</th>
+<th style="text-align: right;">Gini</th>
+<th style="text-align: right;">Entropy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Diabetes = Yes</td>
+<td>3, 4, 7, 8, 9, 10, 12, 13</td>
+<td style="text-align: center;">\([2 \mid 6]\)</td>
+<td style="text-align: right;">0.750</td>
+<td style="text-align: right;">\(1 - 0.0625 - 0.5625 = 0.3750\)</td>
+<td style="text-align: right;">0.8113</td>
+</tr>
+<tr>
+<td>Diabetes = No</td>
+<td>1, 2, 5, 6, 11, 14</td>
+<td style="text-align: center;">\([4 \mid 2]\)</td>
+<td style="text-align: right;">0.333</td>
+<td style="text-align: right;">\(1 - 0.4444 - 0.1111 = 0.4444\)</td>
+<td style="text-align: right;">0.9183</td>
+</tr>
+</tbody>
+</table></div>
+<div class="eq">\[\Delta G = 0.4898 - \left(\tfrac{8}{14}(0.3750) + \tfrac{6}{14}(0.4444)\right) = 0.4898 - (0.2143 + 0.1905) = 0.4898 - 0.4048 = \mathbf{0.0850}\]</div>
+<p>Check with the closed form of Section 5.3: \(2 \cdot \tfrac{8}{14} \cdot \tfrac{6}{14} \cdot (0.750 - 0.333)^2 = 2 \times 0.2449 \times 0.1736 = 0.0850\). ✓</p>
+<p>Information gain: \(0.9852 - \left(\tfrac{8}{14}(0.8113) + \tfrac{6}{14}(0.9183)\right) = 0.9852 - 0.8571 = 0.1281\) bits.</p>
+<h3 id="74-step-1b-candidate-prior-admissions-categorical-feature">7.4 Step 1b — candidate: Prior admissions (categorical feature)</h3>
+<p>First tabulate the class-1 rate per level, then <strong>sort the levels by that rate</strong> (Section 6.3):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Patients</th>
+<th style="text-align: center;">\([n_0 \mid n_1]\)</th>
+<th style="text-align: right;">\(\hat p(\text{level})\)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Low</td>
+<td>1, 2, 7, 10, 14</td>
+<td style="text-align: center;">\([4 \mid 1]\)</td>
+<td style="text-align: right;">0.20</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>3, 5, 8, 9</td>
+<td style="text-align: center;">\([2 \mid 2]\)</td>
+<td style="text-align: right;">0.50</td>
+</tr>
+<tr>
+<td>High</td>
+<td>4, 6, 11, 12, 13</td>
+<td style="text-align: center;">\([0 \mid 5]\)</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+</tbody>
+</table></div>
+<p>With \(L = 3\) there are \(2^{2} - 1 = 3\) possible binary groupings, but the ordering theorem says only the \(L - 1 = 2\) contiguous cuts can be optimal:</p>
+<p><strong>Cut A: {Low} | {Medium, High}</strong> → children \([4 \mid 1]\) and \([2 \mid 7]\):</p>
+<div class="eq">\[\Delta G = 0.4898 - \left(\tfrac{5}{14}(0.3200) + \tfrac{9}{14}(0.3457)\right) = 0.4898 - 0.3365 = 0.1533\]</div>
+<p><strong>Cut B: {Low, Medium} | {High}</strong> → children \([6 \mid 3]\) and \([0 \mid 5]\):</p>
+<div class="eq">\[\Delta G = 0.4898 - \left(\tfrac{9}{14}(0.4444) + \tfrac{5}{14}(0)\right) = 0.4898 - 0.2857 = \mathbf{0.2041}\]</div>
+<p>Closed form: \(2 \cdot \tfrac{5}{14} \cdot \tfrac{9}{14} \cdot (1 - \tfrac{1}{3})^2 = 2 \times 0.2296 \times 0.4444 = 0.2041\). ✓</p>
+<p>For completeness, the non-contiguous grouping <strong>{Medium} | {Low, High}</strong> gives children \([2 \mid 2]\) and \([4 \mid 6]\) and \(\Delta G = 0.0041\) — as the theorem promises, it is never the best.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig07_categorical_ordering.svg" alt="Bar chart of readmission rate by prior-admission level with the two contiguous cut positions marked" loading="lazy"></div><figcaption><span class="fig-num">Figure 4.</span> Sorting the levels of a categorical feature by their class-1 rate turns a search over \(2^{L-1}-1\) groupings into a scan over \(L-1\) cut points, exactly like a continuous feature.</figcaption></figure>
+<h3 id="75-step-1c-candidate-age-continuous-feature">7.5 Step 1c — candidate: Age (continuous feature)</h3>
+<p>Sort the 14 patients by age:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Age</th>
+<th>38</th>
+<th>44</th>
+<th>45</th>
+<th>49</th>
+<th>52</th>
+<th>55</th>
+<th>58</th>
+<th>61</th>
+<th>66</th>
+<th>67</th>
+<th>68</th>
+<th>70</th>
+<th>73</th>
+<th>77</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>\(y\)</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+<td>1</td>
+</tr>
+</tbody>
+</table></div>
+<p>There are 14 distinct ages, hence 13 midpoint thresholds. Sweeping them left to right with running counts:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: right;">Threshold \(\theta\)</th>
+<th style="text-align: center;">Left \([n_0 \mid n_1]\)</th>
+<th style="text-align: center;">Right \([n_0 \mid n_1]\)</th>
+<th style="text-align: center;">Boundary point?</th>
+<th style="text-align: right;">\(\Delta G\)</th>
+<th style="text-align: right;">IG (bits)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">41.0</td>
+<td style="text-align: center;">\([1 \mid 0]\)</td>
+<td style="text-align: center;">\([5 \mid 8]\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: right;">0.0502</td>
+<td style="text-align: right;">0.0927</td>
+</tr>
+<tr>
+<td style="text-align: right;">44.5</td>
+<td style="text-align: center;">\([1 \mid 1]\)</td>
+<td style="text-align: center;">\([5 \mid 7]\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: right;">0.0017</td>
+<td style="text-align: right;">0.0025</td>
+</tr>
+<tr>
+<td style="text-align: right;">47.0</td>
+<td style="text-align: center;">\([2 \mid 1]\)</td>
+<td style="text-align: center;">\([4 \mid 7]\)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: right;">0.0309</td>
+<td style="text-align: right;">0.0454</td>
+</tr>
+<tr>
+<td style="text-align: right;">50.5</td>
+<td style="text-align: center;">\([3 \mid 1]\)</td>
+<td style="text-align: center;">\([3 \mid 7]\)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: right;">0.0827</td>
+<td style="text-align: right;">0.1239</td>
+</tr>
+<tr>
+<td style="text-align: right;">53.5</td>
+<td style="text-align: center;">\([4 \mid 1]\)</td>
+<td style="text-align: center;">\([2 \mid 7]\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: right;">0.1533</td>
+<td style="text-align: right;">0.2361</td>
+</tr>
+<tr>
+<td style="text-align: right;">56.5</td>
+<td style="text-align: center;">\([4 \mid 2]\)</td>
+<td style="text-align: center;">\([2 \mid 6]\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: right;">0.0850</td>
+<td style="text-align: right;">0.1281</td>
+</tr>
+<tr>
+<td style="text-align: right;"><strong>59.5</strong></td>
+<td style="text-align: center;">\([5 \mid 2]\)</td>
+<td style="text-align: center;">\([1 \mid 6]\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: right;"><strong>0.1633</strong></td>
+<td style="text-align: right;">0.2578</td>
+</tr>
+<tr>
+<td style="text-align: right;">63.5</td>
+<td style="text-align: center;">\([5 \mid 3]\)</td>
+<td style="text-align: center;">\([1 \mid 5]\)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: right;">0.1029</td>
+<td style="text-align: right;">0.1613</td>
+</tr>
+<tr>
+<td style="text-align: right;">66.5</td>
+<td style="text-align: center;">\([5 \mid 4]\)</td>
+<td style="text-align: center;">\([1 \mid 4]\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: right;">0.0580</td>
+<td style="text-align: right;">0.0903</td>
+</tr>
+<tr>
+<td style="text-align: right;">67.5</td>
+<td style="text-align: center;">\([6 \mid 4]\)</td>
+<td style="text-align: center;">\([0 \mid 4]\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: right;">0.1469</td>
+<td style="text-align: right;"><strong>0.2917</strong></td>
+</tr>
+<tr>
+<td style="text-align: right;">69.0</td>
+<td style="text-align: center;">\([6 \mid 5]\)</td>
+<td style="text-align: center;">\([0 \mid 3]\)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: right;">0.1002</td>
+<td style="text-align: right;">0.2042</td>
+</tr>
+<tr>
+<td style="text-align: right;">71.5</td>
+<td style="text-align: center;">\([6 \mid 6]\)</td>
+<td style="text-align: center;">\([0 \mid 2]\)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: right;">0.0612</td>
+<td style="text-align: right;">0.1281</td>
+</tr>
+<tr>
+<td style="text-align: right;">75.0</td>
+<td style="text-align: center;">\([6 \mid 7]\)</td>
+<td style="text-align: center;">\([0 \mid 1]\)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: right;">0.0283</td>
+<td style="text-align: right;">0.0606</td>
+</tr>
+</tbody>
+</table></div>
+<p>Worked arithmetic for the best Gini threshold, \(\theta = 59.5\):</p>
+<div class="eq">\[G([5 \mid 2]) = 1 - \tfrac{25}{49} - \tfrac{4}{49} = \tfrac{20}{49} = 0.4082, \qquad G([1 \mid 6]) = 1 - \tfrac{1}{49} - \tfrac{36}{49} = \tfrac{12}{49} = 0.2449\]</div>
+<div class="eq">\[\Delta G = 0.4898 - \left(\tfrac{7}{14}(0.4082) + \tfrac{7}{14}(0.2449)\right) = 0.4898 - 0.3265 = 0.1633\]</div>
+<p>Two observations worth pausing on:</p>
+<ol>
+<li><strong>Both optima sit on boundary points</strong> (✔), exactly as Fayyad &amp; Irani guarantee. An implementation could have skipped the six non-boundary thresholds entirely.</li>
+<li><strong>Gini and entropy disagree on Age.</strong> Gini prefers \(\theta = 59.5\) (a balanced 7/7 split); entropy prefers \(\theta = 67.5\), which isolates a perfectly pure group of four. This is the behaviour predicted in Section 4.5: entropy is more enthusiastic about creating a pure child.</li>
+</ol>
+<section class="lab" id="lab-scan" aria-label="Threshold scanner">
+  <div class="lab-head"><span class="chip">Lab</span><h4>Threshold scanner: Age</h4></div>
+  <p class="lab-note">Every midpoint between consecutive sorted ages is a candidate threshold. Drag the slider (or click a point) to move the threshold. Shaded bands are class-boundary midpoints, the only places an optimum can occur. The data are shared with the tree builder in Section 7.9, so flipping an outcome there changes this chart too.</p>
+  <div class="controls">
+    <div class="ctl"><span class="lbl">Node</span><div class="seg" id="sc-node"><button aria-pressed="true" data-v="root">Root (all patients)</button><button aria-pressed="false" data-v="nothigh">Prior ≠ High</button></div></div>
+    <div class="ctl"><label for="sc-th">Threshold</label><input type="range" id="sc-th" min="0" max="12" step="1" value="6"><span class="readout" id="sc-thv"></span></div>
+  </div>
+  <div class="chart-wrap"><svg class="chart" id="sc-svg" viewBox="0 0 680 300" role="img" aria-label="Relative impurity reduction for each Age threshold"></svg></div>
+  <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>Gini: ΔG ÷ G(parent)</span><span><i class="sw" style="background:var(--violet)"></i>Entropy: IG ÷ H(parent)</span><span><i class="sw dot" style="background:var(--c0)"></i>not readmitted</span><span><i class="sw dot" style="background:var(--c1)"></i>readmitted</span></div>
+  <p class="explain" id="sc-explain"></p>
+</section>
+
+<h3 id="76-step-1d-choose-the-root-split">7.6 Step 1d — choose the root split</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align: right;">Rank</th>
+<th>Candidate split</th>
+<th>Children \([n_0 \mid n_1]\)</th>
+<th style="text-align: right;">\(\Delta G\)</th>
+<th style="text-align: right;">IG (bits)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;"><strong>1</strong></td>
+<td><strong>Prior admissions ∈ {High}</strong></td>
+<td>\([0 \mid 5]\), \([6 \mid 3]\)</td>
+<td style="text-align: right;"><strong>0.2041</strong></td>
+<td style="text-align: right;"><strong>0.3949</strong></td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>Age ≤ 59.5</td>
+<td>\([5 \mid 2]\), \([1 \mid 6]\)</td>
+<td style="text-align: right;">0.1633</td>
+<td style="text-align: right;">0.2578</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>Prior admissions ∈ {Low}</td>
+<td>\([4 \mid 1]\), \([2 \mid 7]\)</td>
+<td style="text-align: right;">0.1533</td>
+<td style="text-align: right;">0.2361</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>Age ≤ 67.5</td>
+<td>\([6 \mid 4]\), \([0 \mid 4]\)</td>
+<td style="text-align: right;">0.1469</td>
+<td style="text-align: right;">0.2917</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>Diabetes = Yes</td>
+<td>\([2 \mid 6]\), \([4 \mid 2]\)</td>
+<td style="text-align: right;">0.0850</td>
+<td style="text-align: right;">0.1281</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Prior admissions = High</strong> wins under both criteria. The root test is <em>"Is Prior admissions = High?"</em></p>
+<h3 id="77-step-2-recurse-into-each-child">7.7 Step 2 — recurse into each child</h3>
+<p><strong>Left child (Prior = High), \([0 \mid 5]\).</strong> Gini \(= 0\): pure. <strong>Make a leaf</strong> predicting 1. No further search is needed.</p>
+<p><strong>Right child (Prior ≠ High), \([6 \mid 3]\)</strong>, patients {1, 2, 3, 5, 7, 8, 9, 10, 14}:</p>
+<div class="eq">\[G = 1 - \left(\tfrac{6}{9}\right)^2 - \left(\tfrac{3}{9}\right)^2 = \tfrac{4}{9} = 0.4444, \qquad H = 0.9183 \text{ bits}.\]</div>
+<p>Re-run the full search <strong>on these 9 patients only</strong>. Ages sorted: 38(0), 45(0), 49(0), 52(0), 58(0), 61(1), 67(0), 68(1), 73(1).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Candidate split</th>
+<th>Children \([n_0 \mid n_1]\)</th>
+<th style="text-align: right;">\(\Delta G\)</th>
+<th style="text-align: right;">IG (bits)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Age ≤ 59.5</strong></td>
+<td>\([5 \mid 0]\), \([1 \mid 3]\)</td>
+<td style="text-align: right;"><strong>0.2778</strong></td>
+<td style="text-align: right;"><strong>0.5577</strong></td>
+</tr>
+<tr>
+<td>Age ≤ 67.5</td>
+<td>\([6 \mid 1]\), \([0 \mid 2]\)</td>
+<td style="text-align: right;">0.2540</td>
+<td style="text-align: right;">0.4581</td>
+</tr>
+<tr>
+<td>Age ≤ 55.0</td>
+<td>\([4 \mid 0]\), \([2 \mid 3]\)</td>
+<td style="text-align: right;">0.1778</td>
+<td style="text-align: right;">0.3789</td>
+</tr>
+<tr>
+<td>Diabetes = Yes</td>
+<td>\([2 \mid 3]\), \([4 \mid 0]\)</td>
+<td style="text-align: right;">0.1778</td>
+<td style="text-align: right;">0.3789</td>
+</tr>
+<tr>
+<td>Age ≤ 50.5 / 64.0 / 70.5</td>
+<td>—</td>
+<td style="text-align: right;">0.1111</td>
+<td style="text-align: right;">≤ 0.2516</td>
+</tr>
+<tr>
+<td>Prior: {Low} vs {Medium}</td>
+<td>\([4 \mid 1]\), \([2 \mid 2]\)</td>
+<td style="text-align: right;">0.0444</td>
+<td style="text-align: right;">0.0728</td>
+</tr>
+</tbody>
+</table></div>
+<p>Arithmetic for the winner: \(\Delta G = 0.4444 - \left(\tfrac{5}{9}(0) + \tfrac{4}{9}(0.375)\right) = 0.4444 - 0.1667 = 0.2778\).</p>
+<p>Notice that <strong>Age</strong>, which lost at the root, wins here. Splits are re-evaluated in each sub-population — this is how trees model <strong>interactions</strong>: the effect of age is only examined among patients without a high admission history.</p>
+<h3 id="78-step-3-the-remaining-impure-node">7.8 Step 3 — the remaining impure node</h3>
+<p><strong>Age ≤ 59.5</strong> gives a pure child \([5 \mid 0]\) (leaf, predict 0) and an impure child \([1 \mid 3]\): patients 3 (61, Yes, Medium, 1), 8 (73, Yes, Medium, 1), 10 (68, Yes, Low, 1), 14 (67, No, Low, 0).</p>
+<div class="eq">\[G([1 \mid 3]) = 1 - \tfrac{1}{16} - \tfrac{9}{16} = 0.375.\]</div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Candidate split</th>
+<th>Children \([n_0 \mid n_1]\)</th>
+<th style="text-align: right;">\(\Delta G\)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Diabetes = Yes</strong></td>
+<td>\([0 \mid 3]\), \([1 \mid 0]\)</td>
+<td style="text-align: right;"><strong>0.3750</strong> (perfect)</td>
+</tr>
+<tr>
+<td>Prior: {Medium} vs {Low}</td>
+<td>\([0 \mid 2]\), \([1 \mid 1]\)</td>
+<td style="text-align: right;">0.1250</td>
+</tr>
+<tr>
+<td>Age ≤ 67.5</td>
+<td>\([1 \mid 1]\), \([0 \mid 2]\)</td>
+<td style="text-align: right;">0.1250</td>
+</tr>
+<tr>
+<td>Age ≤ 64.0 or ≤ 70.5</td>
+<td>—</td>
+<td style="text-align: right;">0.0417</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Diabetes = Yes</strong> removes all remaining impurity. Both children are pure, so growth stops.</p>
+<h3 id="79-the-finished-tree">7.9 The finished tree</h3>
+<section class="lab" id="lab-builder" aria-label="Tree builder">
+  <div class="lab-head"><span class="chip">Lab</span><h4>Tree builder: the 14-patient example</h4></div>
+  <p class="lab-note">This tree is grown live from the table below by the algorithm of Section 8. With the default settings it is exactly the tree worked out above. Select a node to see every candidate split it compared. Choose a different split, or turn the node into a leaf, and the subtree regrows. Click a patient's outcome to flip it.</p>
+  <div class="controls">
+    <div class="ctl"><span class="lbl">Criterion</span><div class="seg" id="b-crit"><button aria-pressed="true" data-v="gini">Gini</button><button aria-pressed="false" data-v="entropy">Entropy</button></div></div>
+    <div class="ctl"><label for="b-depth">Max depth</label><select id="b-depth"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="99" selected>no limit</option></select></div>
+    <div class="ctl"><label for="b-leaf">Min samples per leaf</label><select id="b-leaf"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
+    <button class="btn" id="b-reset">Reset data and choices</button>
+  </div>
+  <div class="stats" id="b-stats"></div>
+  <div class="tree-scroll"><svg id="b-tree" role="img" aria-label="Decision tree"></svg></div>
+  <div class="stack">
+    <div class="panel" id="b-node"></div>
+    <div class="panel">
+      <h5>Predict a new patient</h5>
+      <div class="controls" style="margin-bottom:0.5rem">
+        <div class="ctl"><label for="p-age">Age</label><input type="range" id="p-age" min="30" max="90" step="1" value="64" style="width:8rem"><span class="readout" id="p-agev">64</span></div>
+        <div class="ctl"><label for="p-diab">Diabetes</label><select id="p-diab"><option value="0" selected>No</option><option value="1">Yes</option></select></div>
+        <div class="ctl"><label for="p-prior">Prior admissions</label><select id="p-prior"><option value="0">Low</option><option value="1" selected>Medium</option><option value="2">High</option></select></div>
+      </div>
+      <div id="p-out"></div>
+    </div>
+  </div>
+  <h5 style="font-family:var(--font-display);margin:1rem 0 0.3rem">Training data <span class="note-sm">· click an outcome to flip it</span></h5>
+  <div class="table-wrap"><table id="b-data"></table></div>
+</section>
+
+<p>Written as rules (one per leaf):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Condition</th>
+<th style="text-align: center;">Prediction</th>
+<th style="text-align: center;">Support</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>Prior = High</td>
+<td style="text-align: center;">readmitted</td>
+<td style="text-align: center;">5 / 5</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>Prior ≠ High <strong>and</strong> Age ≤ 59.5</td>
+<td style="text-align: center;">not readmitted</td>
+<td style="text-align: center;">5 / 5</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>Prior ≠ High <strong>and</strong> Age &gt; 59.5 <strong>and</strong> Diabetes = Yes</td>
+<td style="text-align: center;">readmitted</td>
+<td style="text-align: center;">3 / 3</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>Prior ≠ High <strong>and</strong> Age &gt; 59.5 <strong>and</strong> Diabetes = No</td>
+<td style="text-align: center;">not readmitted</td>
+<td style="text-align: center;">1 / 1</td>
+</tr>
+</tbody>
+</table></div>
+<p>The tree partitions the three-dimensional feature space into four regions. Because one feature is binary, the partition can be drawn as two side-by-side panels:</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig09_worked_partition.svg" alt="Two panels (Diabetes No and Yes) showing Age vs Prior admissions with the four predicted regions shaded" loading="lazy"></div><figcaption><span class="fig-num">Figure 5.</span> The fitted partition. Each panel fixes Diabetes; the shading is the tree's prediction (blue = 0, orange = 1). The only difference between panels is the upper-right block (Prior ≠ High, Age &gt; 59.5), which is exactly where the third split acts.</figcaption></figure>
+<p><strong>Predicting a new patient.</strong> A 64-year-old without diabetes and with Medium prior admissions: Prior = High? <em>No</em> → Age ≤ 59.5? <em>No</em> → Diabetes = Yes? <em>No</em> → leaf R4: <strong>predict not readmitted</strong>. Note that R4 rests on a single training patient — a warning sign we return to in Sections 9.3 and 13.</p>
+<h3 id="710-the-honest-scorecard">7.10 The honest scorecard</h3>
+<p>The fully grown tree makes <strong>0 errors on its 14 training patients</strong>. Under <strong>leave-one-out cross-validation</strong> (rebuild the tree 14 times, each time predicting the one held-out patient), the same procedure makes <strong>6 errors out of 14 (43%)</strong> — no better than always predicting the majority class (6/14 errors). On a dataset this small the tree is memorising, not learning. Sections 11–13 explain this gap and how to close it. (The tree builder above reports this leave-one-out count live as you change the data or the settings.)</p>
+
+<h2 id="8-the-growth-algorithm-formally"><span class="secnum">8</span>The growth algorithm, formally</h2>
+<h3 id="81-the-recursive-procedure-described-in-words">8.1 The recursive procedure (described in words)</h3>
+<p><strong>GROW(node \(t\), samples \(S_t\), depth \(\delta\)):</strong></p>
+<ol>
+<li><strong>Record</strong> the class counts \(n_{t0}, n_{t1}\) and the impurity \(I(t)\) at the node. (These are needed at every node, not only at leaves — for pruning, probability estimates and feature importance.)</li>
+<li><strong>Check the stopping rules</strong> (Section 12). If any fires — the node is pure; \(\delta\) equals the maximum depth; \(n_t\) is below the minimum split size; or no feature has two distinct values — turn \(t\) into a <strong>leaf</strong> and return.</li>
+<li><strong>Search.</strong> For every feature \(j\), generate its candidate splits (Section 6) and compute \(\Delta I(s,t)\) for each.</li>
+<li><strong>Select</strong> \(s^{\star} = \arg\max_s \Delta I(s,t)\). Break ties deterministically (e.g. lowest feature index, then lowest threshold) so the tree is reproducible.</li>
+<li><strong>Validate.</strong> If \(\Delta I(s^{\star}, t)\) is below the minimum gain, or either child would have fewer than the minimum leaf size, turn \(t\) into a leaf and return.</li>
+<li><strong>Partition</strong> \(S_t\) into \(S_{t_L} = \lbrace i \in S_t : \text{test}_{s^{\star}}(\mathbf{x}_i) \text{ true}\rbrace\) and \(S_{t_R} = S_t \setminus S_{t_L}\). Store the test (feature index, threshold or category set) in \(t\).</li>
+<li><strong>Recurse:</strong> GROW(\(t_L\), \(S_{t_L}\), \(\delta + 1\)) and GROW(\(t_R\), \(S_{t_R}\), \(\delta + 1\)).</li>
+</ol>
+<p>Calling GROW(root, \(\mathcal{D}\), 0) builds the whole tree.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig05_growth_flowchart.svg" alt="Flowchart of the recursive tree-growing procedure" loading="lazy"></div><figcaption><span class="fig-num">Figure 6.</span> The recursive growth procedure. Each call either creates a leaf or creates a test node and calls itself twice on disjoint subsets. Because the subsets shrink strictly, recursion always terminates.</figcaption></figure>
+<h3 id="82-termination-guarantee">8.2 Termination guarantee</h3>
+<p>Each split sends at least one sample to each child (or it would not be a valid split), so \(n_{t_L}, n_{t_R} &lt; n_t\). Sample counts strictly decrease along every path, so depth is at most \(N - 1\) and the tree has at most \(N\) leaves.</p>
+<h3 id="83-prediction">8.3 Prediction</h3>
+<p><strong>PREDICT(\(\mathbf{x}\)):</strong> start at the root; at each internal node evaluate its stored test on \(\mathbf{x}\) and move to the matching child; on reaching a leaf return its stored \(\hat p_m\) (probability) or \(c_m\) (label). Cost: one comparison per level — \(O(\text{depth})\).</p>
+<h3 id="84-what-a-node-must-store">8.4 What a node must store</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th style="text-align: center;">Internal node</th>
+<th style="text-align: center;">Leaf</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>class counts \(n_{t0}, n_{t1}\) (and weights, if any)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr>
+<td>impurity \(I(t)\) and depth</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;">✔</td>
+</tr>
+<tr>
+<td>feature index \(j\) and threshold \(\theta\) / category set \(A\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;"></td>
+</tr>
+<tr>
+<td>impurity decrease \(\Delta I(s^{\star}, t)\)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;"></td>
+</tr>
+<tr>
+<td>links to left and right children</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;"></td>
+</tr>
+<tr>
+<td>default direction for missing values (Section 14.2)</td>
+<td style="text-align: center;">✔</td>
+<td style="text-align: center;"></td>
+</tr>
+<tr>
+<td>predicted probability \(\hat p_m\) and label \(c_m\)</td>
+<td style="text-align: center;">(useful for pruning)</td>
+<td style="text-align: center;">✔</td>
+</tr>
+</tbody>
+</table></div>
+
+<h2 id="9-leaf-predictions-from-counts-to-probabilities-to-decisions"><span class="secnum">9</span>Leaf predictions: from counts to probabilities to decisions</h2>
+<h3 id="91-the-maximum-likelihood-probability">9.1 The maximum-likelihood probability</h3>
+<p>Inside leaf \(m\), model the labels as i.i.d. \(\text{Bernoulli}(\pi_m)\). The likelihood of the \(n_m\) labels with \(n_{m1}\) ones is</p>
+<div class="eq">\[\mathcal{L}(\pi_m) = \pi_m^{\,n_{m1}}(1-\pi_m)^{\,n_{m0}}, \qquad \ln\mathcal{L} = n_{m1}\ln\pi_m + n_{m0}\ln(1-\pi_m).\]</div>
+<p>Setting the derivative \(\frac{n_{m1}}{\pi_m} - \frac{n_{m0}}{1-\pi_m}\) to zero gives the <strong>MLE</strong></p>
+<div class="eq">\[\hat p_m = \frac{n_{m1}}{n_m}.\]</div>
+<h3 id="92-the-majority-vote-label-minimises-training-error">9.2 The majority-vote label minimises training error</h3>
+<p>Predicting 1 everywhere in the leaf costs \(n_{m0}\) errors; predicting 0 costs \(n_{m1}\). The best constant label is therefore the majority class, \(c_m = \mathbb{1}[\hat p_m &gt; \tfrac12]\), and its error count is \(n_m \min(\hat p_m, 1-\hat p_m) = n_m E(\hat p_m)\) — the misclassification impurity again.</p>
+<h3 id="93-smoothing-small-leaves-laplace-and-the-beta-posterior">9.3 Smoothing small leaves: Laplace and the Beta posterior</h3>
+<p>The MLE is overconfident in small leaves. Leaf R4 of Section 7 has \([1 \mid 0]\): the MLE claims \(P(\text{readmit}) = 0\) from <strong>one</strong> patient.</p>
+<p>A Bayesian fix puts a \(\text{Beta}(\alpha, \beta)\) prior on \(\pi_m\). Because the Beta is conjugate to the Bernoulli, the posterior is \(\text{Beta}(\alpha + n_{m1},\ \beta + n_{m0})\), with posterior mean</p>
+<div class="eq">\[\hat p_m^{\,\text{Bayes}} = \frac{n_{m1} + \alpha}{n_m + \alpha + \beta}.\]</div>
+<ul>
+<li>\(\alpha = \beta = 1\) (uniform prior) gives the <strong>Laplace estimate</strong> \(\frac{n_{m1}+1}{n_m+2}\).</li>
+<li>The <strong>m-estimate</strong> \(\frac{n_{m1} + m\,\pi_0}{n_m + m}\) shrinks towards the overall base rate \(\pi_0\) with strength \(m\) — useful under class imbalance.</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th style="text-align: center;">Counts</th>
+<th style="text-align: right;">MLE \(\hat p\)</th>
+<th style="text-align: right;">Laplace \(\frac{n_1+1}{n+2}\)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1 (Prior = High)</td>
+<td style="text-align: center;">\([0 \mid 5]\)</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.857</td>
+</tr>
+<tr>
+<td>R2 (Age ≤ 59.5)</td>
+<td style="text-align: center;">\([5 \mid 0]\)</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.143</td>
+</tr>
+<tr>
+<td>R3 (Diabetes = Yes)</td>
+<td style="text-align: center;">\([0 \mid 3]\)</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.800</td>
+</tr>
+<tr>
+<td>R4 (Diabetes = No)</td>
+<td style="text-align: center;">\([1 \mid 0]\)</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.333</td>
+</tr>
+</tbody>
+</table></div>
+<p>Smoothing leaves the predicted <em>labels</em> unchanged here but makes the <em>probabilities</em> honest: the tree now says it is much less sure about R4 than about R1.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig17_leaf_smoothing.svg" alt="Beta posterior densities for a 3-sample pure leaf and a 30-sample pure leaf" loading="lazy"></div><figcaption><span class="fig-num">Figure 7.</span> Two leaves with identical MLE \(\hat p = 1.0\). With a uniform prior, the 3-sample leaf's posterior (orange) is wide with mean 0.80; the 30-sample leaf's (blue) is concentrated near 1 with mean 0.97. Smoothing encodes how much evidence stands behind each leaf.</figcaption></figure>
+<h3 id="94-from-probability-to-decision-cost-sensitive-thresholds">9.4 From probability to decision: cost-sensitive thresholds</h3>
+<p>If a false negative (missing a readmission) costs \(C_{FN}\) and a false positive (an unnecessary follow-up call) costs \(C_{FP}\), the expected cost of each action at a leaf with probability \(\hat p\) is</p>
+<div class="eq">\[\mathbb{E}[\text{cost} \mid \text{predict } 1] = (1-\hat p)\,C_{FP}, \qquad \mathbb{E}[\text{cost} \mid \text{predict } 0] = \hat p\, C_{FN}.\]</div>
+<p>Predict 1 when the first is smaller:</p>
+<div class="eq">\[\boxed{\;\text{predict } 1 \iff \hat p &gt; \tau^{\star} = \frac{C_{FP}}{C_{FP} + C_{FN}}\;}\]</div>
+<p>With equal costs \(\tau^{\star} = \tfrac12\) (majority vote). If missing a readmission is 4 times as costly as an extra call, \(\tau^{\star} = \frac{1}{1+4} = 0.2\), and any leaf whose estimated risk exceeds 20% should be flagged. This is one reason to store probabilities rather than labels: the threshold can change after training without regrowing the tree.</p>
+<section class="lab" id="lab-threshold" aria-label="Decision threshold lab">
+  <div class="lab-head"><span class="chip">Lab</span><h4>Cost-sensitive decision threshold</h4></div>
+  <p class="lab-note">Each leaf of the tree builder's current tree, placed at its estimated readmission probability. Raise the cost of a missed readmission and the threshold τ* falls. Raise the prior strength and small leaves are pulled towards ½.</p>
+  <div class="controls">
+    <div class="ctl"><label for="th-cost">Cost ratio C<sub>FN</sub> ÷ C<sub>FP</sub></label><input type="range" id="th-cost" min="-2" max="4.32" step="0.01" value="0"><span class="readout" id="th-costv"></span></div>
+    <div class="ctl"><label for="th-a">Prior Beta(a, a), a =</label><input type="range" id="th-a" min="0" max="5" step="0.5" value="1" style="width:8rem"><span class="readout" id="th-av"></span></div>
+  </div>
+  <div class="chart-wrap"><svg class="chart" id="th-svg" viewBox="0 0 680 150" role="img" aria-label="Leaves on a probability axis with the decision threshold"></svg></div>
+  <div class="table-wrap"><table id="th-table"></table></div>
+</section>
+
+
+<h2 id="10-the-statistics-underneath-what-a-tree-really-optimises"><span class="secnum">10</span>The statistics underneath: what a tree really optimises</h2>
+<h3 id="101-entropy-splitting-is-maximum-likelihood-fitting">10.1 Entropy splitting is maximum-likelihood fitting</h3>
+<p>Treat the tree as a statistical model: within each leaf, labels are \(\text{Bernoulli}(\pi_m)\). Plugging the MLE into the log-likelihood of leaf \(m\) gives</p>
+<div class="eq">\[\ln\hat{\mathcal{L}}_m = n_{m1}\ln\tfrac{n_{m1}}{n_m} + n_{m0}\ln\tfrac{n_{m0}}{n_m} = -\,n_m\,H_e(\hat p_m),\]</div>
+<p>where \(H_e\) is entropy in nats. The maximised log-likelihood of the whole tree is therefore</p>
+<div class="eq">\[\ln\hat{\mathcal{L}}(T) = -\sum_{m \in \tilde T} n_m\,H_e(\hat p_m).\]</div>
+<p>Replacing a leaf \(t\) by a split into \(t_L, t_R\) changes the log-likelihood by</p>
+<div class="eq">\[\Delta\ln\hat{\mathcal{L}} = n_t H_e(t) - n_{t_L}H_e(t_L) - n_{t_R}H_e(t_R) = n_t\,\mathrm{IG}_e(s,t) = n_t \ln 2 \cdot \mathrm{IG}(s,t).\]</div>
+<aside class="callout">
+<p><strong>Choosing the split with maximum information gain is choosing the split that most increases the Bernoulli log-likelihood of the data.</strong> Entropy-based tree growing is greedy maximum-likelihood estimation of a piecewise-constant probability model.</p>
+</aside>
+<p><strong>Check on the worked example.</strong> At the root, \(\ln\hat{\mathcal L} = 6\ln\tfrac{6}{14} + 8\ln\tfrac{8}{14} = -9.5607\). After the root split, \(\ln\hat{\mathcal L} = 0 + \big(6\ln\tfrac{6}{9} + 3\ln\tfrac{3}{9}\big) = -5.7286\). The increase, \(3.8321\) nats, equals \(14 \times \ln 2 \times 0.39490 = 3.8321\). ✓</p>
+<p>The <strong>deviance</strong> of a tree is \(D(T) = -2\ln\hat{\mathcal L}(T) = 2\sum_m n_m H_e(\hat p_m)\), and the drop in deviance caused by a split is \(2 n_t \ln 2 \cdot \mathrm{IG}\).</p>
+<h3 id="102-gini-splitting-is-least-squares-fitting">10.2 Gini splitting is least-squares fitting</h3>
+<p>Encode \(y \in \lbrace 0,1\rbrace\) as a number and fit each leaf with a constant. The best constant under squared error is the leaf mean \(\hat p_m\), and the leaf's sum of squared errors is</p>
+<div class="eq">\[\mathrm{SSE}_m = \sum_{i \in R_m}(y_i - \hat p_m)^2 = n_m\,\hat p_m(1-\hat p_m) = \tfrac12\,n_m\,G(\hat p_m).\]</div>
+<p>Hence</p>
+<div class="eq">\[n_t\,\Delta G(s,t) = 2\left[\mathrm{SSE}_t - \mathrm{SSE}_{t_L} - \mathrm{SSE}_{t_R}\right].\]</div>
+<aside class="callout">
+<p><strong>Choosing the split with maximum Gini decrease is choosing the split that most reduces the squared error (Brier score) of the 0/1 labels.</strong> A Gini classification tree is a regression tree fitted to the 0/1 label.</p>
+</aside>
+<p>Check: root \(\mathrm{SSE} = 14 \times \tfrac{8}{14} \times \tfrac{6}{14} = 3.4286 = \tfrac12 \times 14 \times 0.4898\). ✓</p>
+<h3 id="103-every-split-is-a-hypothesis-test">10.3 Every split is a hypothesis test</h3>
+<p>A split cross-tabulates the label against the binary test outcome — a \(2 \times 2\) contingency table. For the root split of Section 7:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: right;">\(y = 0\)</th>
+<th style="text-align: right;">\(y = 1\)</th>
+<th style="text-align: right;">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prior = High</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">5</td>
+</tr>
+<tr>
+<td>Prior ≠ High</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">9</td>
+</tr>
+<tr>
+<td>Total</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">14</td>
+</tr>
+</tbody>
+</table></div>
+<p>The null hypothesis \(H_0\) is "the label is independent of the test outcome" (the split is useless). Three standard tests:</p>
+<p><strong>Likelihood-ratio (G) test.</strong> The G-statistic is exactly twice the log-likelihood gain of Section 10.1:</p>
+<div class="eq">\[G^2 = 2\sum_{\text{cells}} O \ln\frac{O}{E} = 2\,n_t \ln 2 \cdot \mathrm{IG}(s,t) \ \ \overset{H_0}{\sim}\ \ \chi^2_1 \ \text{(asymptotically)}.\]</div>
+<p>Here \(G^2 = 2 \times 14 \times 0.6931 \times 0.3949 = 7.66\), \(p = 0.0056\).</p>
+<p><strong>Pearson's chi-squared test.</strong> With expected counts \(E_{rc} = \frac{(\text{row total})(\text{column total})}{n_t}\) — here \(E = \begin{pmatrix} 2.14 &amp; 2.86 \\ 3.86 &amp; 5.14 \end{pmatrix}\) —</p>
+<div class="eq">\[\chi^2 = \sum_{\text{cells}} \frac{(O - E)^2}{E} = 5.83, \qquad p = 0.016.\]</div>
+<p>For binary splits there is a tidy link to Gini: \(\chi^2 = n_t\,\dfrac{\Delta G}{G(t)}\), i.e. Pearson's statistic is the sample size times the <em>relative</em> Gini decrease. Check: \(14 \times 0.2041/0.4898 = 5.83\). ✓</p>
+<p><strong>Fisher's exact test.</strong> With expected counts below 5, the \(\chi^2\) approximations are shaky. Fisher's test computes the exact hypergeometric probability of tables at least as extreme: \(p = 0.031\) (two-sided). The split is significant at the 5% level by all three tests.</p>
+<p>Repeat at the deepest split (Diabetes, on \([1 \mid 3]\)): the table is \(\begin{pmatrix} 0 &amp; 3 \\ 1 &amp; 0\end{pmatrix}\) and Fisher's exact \(p = 0.25\). <strong>There is no statistical evidence that this split reflects anything real</strong> — it separates one patient from three. This is the statistical signature of overfitting, and it motivates significance-based stopping (Section 12) and pruning (Section 13).</p>
+<aside class="callout">
+<p><strong>The multiple-comparisons trap.</strong> The \(p\)-value above is for one <em>pre-specified</em> split. The tree chose the <em>best</em> of \(K_t\) candidates, so the nominal \(p\)-value is optimistic. A Bonferroni correction multiplies it by \(K_t\); CHAID-style algorithms apply such adjustments, and conditional inference trees (Hothorn et al., 2006) use permutation tests to make split selection statistically valid.</p>
+</aside>
+
+<h2 id="11-overfitting-and-the-biasvariance-trade-off"><span class="secnum">11</span>Overfitting and the bias–variance trade-off</h2>
+<h3 id="111-why-training-error-always-reaches-zero">11.1 Why training error always reaches zero</h3>
+<p>As long as no two training samples share identical features with different labels, recursive partitioning can keep splitting until every leaf is pure (Section 8.2). Training error then becomes <strong>zero by construction</strong> — whether or not the splits reflect real structure. The worked example showed the consequence: 0/14 training errors, 6/14 leave-one-out errors.</p>
+<h3 id="112-the-decomposition">11.2 The decomposition</h3>
+<p>For squared error on the probability estimate at a fixed \(\mathbf{x}\), averaging over random training sets,</p>
+<div class="eq">\[\mathbb{E}\big[(\hat\eta(\mathbf{x}) - \eta(\mathbf{x}))^2\big] = \underbrace{\big(\mathbb{E}[\hat\eta(\mathbf{x})] - \eta(\mathbf{x})\big)^2}_{\text{bias}^2} + \underbrace{\operatorname{Var}\big[\hat\eta(\mathbf{x})\big]}_{\text{variance}}.\]</div>
+<p>In a tree, both terms are governed by <strong>leaf size</strong>:</p>
+<ul>
+<li><strong>Bias</strong> comes from averaging \(\eta\) over the whole leaf region: a large leaf blurs together points with different true probabilities.</li>
+<li><strong>Variance</strong> comes from estimating \(\pi_m\) from \(n_m\) samples: \(\operatorname{Var}(\hat p_m) = \pi_m(1-\pi_m)/n_m\), and with \(n_m = 1\) the estimate is either 0 or 1. On top of this, the <em>location</em> of the splits is itself a random function of the sample (Section 18.3).</li>
+</ul>
+<p>Deeper trees ⇒ smaller leaves ⇒ lower bias, higher variance. The test error is U-shaped in depth:</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig10_overfitting_depth.svg" alt="Training and test error versus maximum depth, averaged over 25 synthetic datasets" loading="lazy"></div><figcaption><span class="fig-num">Figure 8.</span> Synthetic two-class "moons" data with label noise (300 training points, 4,000 test points, averaged over 25 independent datasets). Training error falls monotonically to 0. Test error is lowest around depth 2 (≈ 0.135) and climbs to ≈ 0.171 for fully grown trees. Everything right of the minimum is variance being mistaken for signal.</figcaption></figure>
+<section class="lab" id="lab-sandbox" aria-label="Overfitting sandbox">
+  <div class="lab-head"><span class="chip">Lab</span><h4>Overfitting sandbox</h4></div>
+  <p class="lab-note">A Gini tree fitted to synthetic two-feature data with the same algorithm as the tree builder. Increase the depth and watch training error fall to zero while test error (2,000 fresh points) turns back up. Draw a new training sample to see how unstable a deep tree's regions are. Switch to XOR or the diagonal to see the limitations described in Section 18.</p>
+  <div class="controls">
+    <div class="ctl"><span class="lbl">Data</span><div class="seg" id="sb-data"><button aria-pressed="true" data-v="moons">Moons</button><button aria-pressed="false" data-v="diag">Diagonal</button><button aria-pressed="false" data-v="xor">XOR</button></div></div>
+    <div class="ctl"><label for="sb-noise">Noise</label><input type="range" id="sb-noise" min="0" max="0.5" step="0.05" value="0.3" style="width:7rem"><span class="readout" id="sb-noisev"></span></div>
+    <div class="ctl"><label for="sb-n">Training points</label><select id="sb-n"><option>100</option><option selected>300</option><option>600</option></select></div>
+  </div>
+  <div class="controls">
+    <div class="ctl"><label for="sb-depth">Max depth</label><input type="range" id="sb-depth" min="1" max="14" step="1" value="3"><span class="readout" id="sb-depthv"></span></div>
+    <button class="btn primary" id="sb-resample">Draw a new training sample</button>
+  </div>
+  <div class="stats" id="sb-stats"></div>
+  <div class="grid2">
+    <div><canvas class="regions" id="sb-canvas" width="840" height="840" aria-label="Decision regions and training points"></canvas>
+      <div class="legend"><span><i class="sw dot" style="background:var(--c0)"></i>class 0</span><span><i class="sw dot" style="background:var(--c1)"></i>class 1</span><span>shading = predicted class</span></div></div>
+    <div><svg class="chart" id="sb-curve" viewBox="0 0 420 300" role="img" aria-label="Training and test error by depth"></svg>
+      <div class="legend"><span><i class="sw" style="background:var(--c0)"></i>training error</span><span><i class="sw" style="background:var(--c1)"></i>test error</span><span><i class="sw" style="background:var(--accent)"></i>current depth</span></div></div>
+  </div>
+</section>
+
+<p>There are two families of remedies: <strong>stop early</strong> (pre-pruning, Section 12) or <strong>grow fully and cut back</strong> (post-pruning, Section 13).</p>
+
+<h2 id="12-pre-pruning-stopping-early"><span class="secnum">12</span>Pre-pruning: stopping early</h2>
+<p>Pre-pruning adds stopping rules to step 2 or step 5 of the growth algorithm.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Definition</th>
+<th>Effect and statistical meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Maximum depth \(D_{\max}\)</td>
+<td>stop when \(\delta = D_{\max}\)</td>
+<td>caps the number of leaves at \(2^{D_{\max}}\) and the order of interactions at \(D_{\max}\)</td>
+</tr>
+<tr>
+<td>Minimum samples to split \(n_{\text{split}}\)</td>
+<td>stop if \(n_t &lt; n_{\text{split}}\)</td>
+<td>prevents searching in nodes too small to estimate anything</td>
+</tr>
+<tr>
+<td>Minimum samples per leaf \(n_{\text{leaf}}\)</td>
+<td>reject splits with a child smaller than \(n_{\text{leaf}}\)</td>
+<td>bounds leaf variance: \(\operatorname{Var}(\hat p_m) \le \frac{1}{4 n_{\text{leaf}}}\)</td>
+</tr>
+<tr>
+<td>Minimum impurity decrease \(\gamma\)</td>
+<td>reject if \(\frac{n_t}{N}\Delta I(s^{\star},t) &lt; \gamma\)</td>
+<td>only keep splits that improve the <em>whole tree's</em> impurity by at least \(\gamma\)</td>
+</tr>
+<tr>
+<td>Maximum number of leaves</td>
+<td>grow best-first until the budget is used</td>
+<td>directly controls complexity \(\lvert\tilde T\rvert\)</td>
+</tr>
+<tr>
+<td>Significance test (CHAID-style)</td>
+<td>reject if the (multiplicity-adjusted) \(\chi^2\) / G / Fisher \(p\)-value exceeds a chosen significance level, e.g. 0.05</td>
+<td>stop when the split is statistically indistinguishable from noise</td>
+</tr>
+</tbody>
+</table></div>
+<p>Note the weighting in the minimum-impurity-decrease rule: \(\frac{n_t}{N}\Delta I(s,t)\) is the decrease in the <strong>sample-weighted total impurity of the tree</strong>, \(\sum_{m} \frac{n_m}{N} I(m)\). A split deep in the tree that perfectly purifies 3 samples contributes little, which is exactly right.</p>
+<p><strong>The horizon problem.</strong> Pre-pruning is cheap, but because it judges each split in isolation it can stop before a weak split that would enable strong ones. The XOR pattern of Section 18.2 is the canonical example: every individual split has near-zero gain, so any gain threshold stops at the root. Post-pruning avoids this by looking at whole subtrees after the fact.</p>
+
+<h2 id="13-post-pruning-growing-big-then-cutting-back"><span class="secnum">13</span>Post-pruning: growing big, then cutting back</h2>
+<h3 id="131-reduced-error-pruning-simple-needs-a-validation-set">13.1 Reduced-error pruning (simple, needs a validation set)</h3>
+<p>Hold out a validation set. Working bottom-up, replace an internal node by a leaf (predicting its majority class) whenever doing so <strong>does not increase</strong> the validation error. Repeat until no replacement helps. Simple and fast, but it spends data on validation and the result depends on that particular split of the data.</p>
+<h3 id="132-cost-complexity-pruning-carts-weakest-link-pruning">13.2 Cost-complexity pruning (CART's weakest-link pruning)</h3>
+<p><strong>The objective.</strong> For a tree \(T\), let \(R(T)\) be its resubstitution (training) misclassification rate, \(R(T) = \sum_{m \in \tilde T} \frac{\text{errors in leaf } m}{N}\). For a complexity parameter \(\alpha \ge 0\) define</p>
+<div class="eq">\[\boxed{\;R_\alpha(T) = R(T) + \alpha\,\lvert\tilde T\rvert\;}\]</div>
+<p>Each leaf "costs" \(\alpha\). At \(\alpha = 0\) the full tree \(T_0\) is optimal; as \(\alpha \to \infty\) the root alone is optimal. For every \(\alpha\) there is a unique smallest subtree \(T(\alpha) \subseteq T_0\) minimising \(R_\alpha\) (Breiman et al., 1984).</p>
+<p><strong>The weakest link.</strong> For an internal node \(t\), compare keeping its subtree \(T_t\) with collapsing \(t\) into a leaf. Let \(R(t)\) be the error rate if \(t\) were a leaf. The two options cost the same when</p>
+<div class="eq">\[R(t) + \alpha = R(T_t) + \alpha\,\lvert\tilde T_t\rvert \quad\Longleftrightarrow\quad \alpha = g(t) := \frac{R(t) - R(T_t)}{\lvert\tilde T_t\rvert - 1}.\]</div>
+<p>\(g(t)\) is the <strong>increase in training error per leaf removed</strong> — the price of simplicity at that node. The node with the smallest \(g(t)\) is the <em>weakest link</em>: it buys the least accuracy per leaf.</p>
+<p><strong>The algorithm.</strong></p>
+<ol>
+<li>Start with \(T_0\) and \(\alpha_0 = 0\).</li>
+<li>Compute \(g(t)\) for every internal node of the current tree.</li>
+<li>Let \(\alpha_{k+1} = \min_t g(t)\); collapse every node attaining the minimum to get \(T_{k+1}\).</li>
+<li>Repeat until only the root remains.</li>
+</ol>
+<p><strong>Theorem.</strong> This produces a <strong>nested</strong> sequence \(T_0 \supset T_1 \supset \dots \supset \lbrace\text{root}\rbrace\) with thresholds \(0 = \alpha_0 &lt; \alpha_1 &lt; \dots\) such that \(T_k\) is the optimal subtree for all \(\alpha \in [\alpha_k, \alpha_{k+1})\). So instead of a continuum of \(\alpha\) values there are only a handful of candidate trees.</p>
+<p><strong>Worked example.</strong> Apply it to the fully grown tree of Section 7.9 (\(N = 14\)). Call the three internal nodes Root, \(A\) (the Age ≤ 59.5 node) and \(B\) (the Diabetes node).</p>
+<p><em>Round 1</em> (tree \(T_0\), 4 leaves, \(R(T_0) = 0\)):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Node</th>
+<th style="text-align: center;">Counts</th>
+<th style="text-align: right;">\(R(t)\) as a leaf</th>
+<th style="text-align: right;">\(R(T_t)\)</th>
+<th style="text-align: right;">Leaves in \(T_t\)</th>
+<th style="text-align: right;">\(g(t)\)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>\(B\)</td>
+<td style="text-align: center;">\([1 \mid 3]\)</td>
+<td style="text-align: right;">1/14</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">\(\frac{1/14 - 0}{1} = 0.0714\) ← min</td>
+</tr>
+<tr>
+<td>\(A\)</td>
+<td style="text-align: center;">\([6 \mid 3]\)</td>
+<td style="text-align: right;">3/14</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">\(\frac{3/14}{2} = 0.1071\)</td>
+</tr>
+<tr>
+<td>Root</td>
+<td style="text-align: center;">\([6 \mid 8]\)</td>
+<td style="text-align: right;">6/14</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">\(\frac{6/14}{3} = 0.1429\)</td>
+</tr>
+</tbody>
+</table></div>
+<p>Collapse \(B\) ⇒ \(T_1\) (3 leaves, \(R = 1/14\)), \(\alpha_1 = 1/14\).</p>
+<p><em>Round 2:</em> \(g(A) = \frac{3/14 - 1/14}{2 - 1} = 0.1429\), \(g(\text{Root}) = \frac{6/14 - 1/14}{3 - 1} = 0.1786\). Collapse \(A\) ⇒ \(T_2\) (2 leaves, \(R = 3/14\)), \(\alpha_2 = 1/7\).</p>
+<p><em>Round 3:</em> \(g(\text{Root}) = \frac{6/14 - 3/14}{1} = 0.2143\). Collapse ⇒ \(T_3\) = root only, \(\alpha_3 = 3/14\).</p>
+<section class="lab" id="lab-prune" aria-label="Pruning lab">
+  <div class="lab-head"><span class="chip">Lab</span><h4>Weakest-link pruning</h4></div>
+  <p class="lab-note">Each line is the penalised risk R(T<sub>k</sub>) + α × (number of leaves) of one tree in the nested sequence, computed from the tree builder's current tree. The lowest line at a given α is the optimal subtree. Slide α to walk along that lower envelope.</p>
+  <div class="controls">
+    <div class="ctl"><label for="pr-alpha">α</label><input type="range" id="pr-alpha" min="0" max="1" step="0.001" value="0" style="width:16rem"><span class="readout" id="pr-alphav"></span></div>
+  </div>
+  <div class="chart-wrap"><svg class="chart" id="pr-svg" viewBox="0 0 680 260" role="img" aria-label="Penalised risk of each subtree as a function of alpha"></svg></div>
+  <div class="table-wrap"><table id="pr-table"></table></div>
+  <div class="tree-scroll"><svg id="pr-tree" role="img" aria-label="Optimal pruned tree at this alpha"></svg></div>
+</section>
+
+<p><strong>Choosing \(\alpha\): cross-validation and the 1-SE rule.</strong></p>
+<ol>
+<li>Compute the sequence \(\alpha_0 &lt; \alpha_1 &lt; \dots\) on the full training data. Use the geometric means \(\alpha'_k = \sqrt{\alpha_k\alpha_{k+1}}\) as representative values.</li>
+<li>Split the data into \(V\) folds (typically \(V = 10\)). For each fold \(v\), grow a full tree on the other \(V-1\) folds, prune it at each \(\alpha'_k\), and record its error on fold \(v\).</li>
+<li>Average to get \(\widehat{\mathrm{CV}}(\alpha'_k)\) and its standard error \(\widehat{\mathrm{SE}}_k = \mathrm{sd}_v / \sqrt{V}\).</li>
+<li>Either pick \(\alpha'\) minimising \(\widehat{\mathrm{CV}}\), or — CART's recommendation — use the <strong>1-SE rule</strong>: pick the <strong>largest</strong> \(\alpha'\) (smallest tree) whose CV error is within one standard error of the minimum.</li>
+</ol>
+<p>The 1-SE rule reflects that CV estimates are noisy: trees within one SE of the best are statistically indistinguishable from it, so prefer the simplest.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig11_ccp_path.svg" alt="Left: number of leaves versus alpha; right: cross-validated error versus alpha with the minimum and 1-SE choices marked" loading="lazy"></div><figcaption><span class="fig-num">Figure 9.</span> Cost-complexity pruning on synthetic data (400 training points). (a) The fully grown tree has 68 leaves; as α increases, whole subtrees are removed in nested steps. (b) 10-fold CV error: the minimum (≈ 0.140) is at α ≈ 0.017 with 5 leaves; the 1-SE rule picks α ≈ 0.029 with only 4 leaves and CV error 0.150 — statistically equivalent and simpler.</figcaption></figure>
+<h3 id="133-pessimistic-error-pruning-c45-no-validation-set">13.3 Pessimistic error pruning (C4.5, no validation set)</h3>
+<p>C4.5 avoids holding out data by <strong>inflating</strong> the training error of each leaf to an upper confidence bound. With \(e\) errors among \(n\) samples, \(f = e/n\), and \(z\) the normal quantile for confidence level CF (default CF = 25%, \(z = 0.674\)), the Wilson-style upper bound is</p>
+<div class="eq">\[U_{CF}(e, n) = \frac{f + \frac{z^2}{2n} + z\sqrt{\frac{f}{n} - \frac{f^2}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}.\]</div>
+<p>The pessimistic number of errors of a leaf is \(n \cdot U_{CF}(e,n)\). A subtree is replaced by a leaf if the leaf's pessimistic error is no larger than the sum of its leaves' pessimistic errors.</p>
+<p><em>Worked example, node \(B\)</em> \([1 \mid 3]\):</p>
+<ul>
+<li>As a leaf: \(e = 1, n = 4\): \(U = 0.416\), pessimistic errors \(= 4 \times 0.416 = 1.665\).</li>
+<li>As a subtree: leaf \([0 \mid 3]\) gives \(3 \times 0.132 = 0.395\); leaf \([1 \mid 0]\) gives \(1 \times 0.313 = 0.313\); total \(0.708\).</li>
+</ul>
+<p>Since \(0.708 &lt; 1.665\), C4.5 <strong>keeps</strong> this split (and, by the same calculation, every other split of this tree). Pure leaves are rewarded heavily, and the bound is a heuristic rather than a valid confidence interval — the leaves are not independent of the data that chose them. On tiny datasets, CV-based cost-complexity pruning or significance tests are more conservative.</p>
+<h3 id="134-which-pruning-method">13.4 Which pruning method?</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align: center;">Needs held-out data?</th>
+<th>Statistical basis</th>
+<th>Typical behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pre-pruning (depth, leaf size)</td>
+<td style="text-align: center;">tune by CV</td>
+<td>none / variance bound</td>
+<td>fast; risk of stopping too early</td>
+</tr>
+<tr>
+<td>Significance stopping</td>
+<td style="text-align: center;">no</td>
+<td>\(\chi^2\) / G / Fisher tests</td>
+<td>principled; needs multiple-testing correction</td>
+</tr>
+<tr>
+<td>Reduced-error</td>
+<td style="text-align: center;">yes</td>
+<td>validation error</td>
+<td>simple; wastes data</td>
+</tr>
+<tr>
+<td>Cost-complexity + CV</td>
+<td style="text-align: center;">via CV</td>
+<td>penalised risk, model selection</td>
+<td>the standard; nested trees, 1-SE rule</td>
+</tr>
+<tr>
+<td>Pessimistic (C4.5)</td>
+<td style="text-align: center;">no</td>
+<td>binomial upper bound (heuristic)</td>
+<td>cheap; tends to prune little</td>
+</tr>
+</tbody>
+</table></div>
+
+<h2 id="14-practical-complications"><span class="secnum">14</span>Practical complications</h2>
+<h3 id="141-class-imbalance">14.1 Class imbalance</h3>
+<p>If positives are rare (say 2%), a tree can reach 98% accuracy with a single leaf. Impurity at the root is small, so splits that isolate the rare class gain little. Two equivalent remedies:</p>
+<p><strong>Class weights.</strong> Give each class-\(k\) sample weight \(\omega_k\) and replace every count by a weighted count: \(\tilde n_{t k} = \omega_k n_{tk}\), \(\tilde p_t = \frac{\omega_1 n_{t1}}{\omega_0 n_{t0} + \omega_1 n_{t1}}\), and weights \(\tilde w_L = \frac{\tilde n_{t_L}}{\tilde n_t}\). The common "balanced" choice is \(\omega_k = \frac{N}{2N_k}\), which makes both classes contribute equal total weight.</p>
+<p><strong>Altered priors / costs.</strong> Weighting by \(\omega_1/\omega_0 = C_{FN}/C_{FP}\) is equivalent to growing the tree under misclassification costs.</p>
+<p>Weighting changes the leaf probabilities: the weighted \(\tilde p_m\) estimates \(P(y=1 \mid R_m)\) <strong>under the reweighted distribution</strong>. To recover calibrated probabilities on the original scale, invert the reweighting (Bayes' rule with the original priors):</p>
+<div class="eq">\[\hat p_m = \frac{\tilde p_m/\omega_1}{\tilde p_m/\omega_1 + (1-\tilde p_m)/\omega_0}.\]</div>
+<h3 id="142-missing-values">14.2 Missing values</h3>
+<p>Three standard strategies:</p>
+<ol>
+<li><strong>Missing-as-a-direction.</strong> At each split, try sending all samples with \(x_j\) missing to the left, then to the right; keep whichever gives the larger \(\Delta I\) and store it as the node's default direction.</li>
+<li><strong>Surrogate splits (CART).</strong> After choosing the primary split \(s^{\star}\) on feature \(j\), find for every other feature \(j'\) the split \(s'\) that best <strong>mimics</strong> it. If \(\pi_L, \pi_R\) are the fractions the primary split sends left and right, the predictive measure of association is
+\[\lambda(s^{\star}, s') = \frac{\min(\pi_L, \pi_R) - \big(1 - P(s' \text{ agrees with } s^{\star})\big)}{\min(\pi_L, \pi_R)}.\]
+Only surrogates with \(\lambda &gt; 0\) beat the naïve rule "send everything to the larger child". At prediction time, if \(x_j\) is missing, use the best available surrogate.</li>
+<li><strong>Fractional samples (C4.5).</strong> Compute \(\Delta I\) on the samples with \(x_j\) observed and scale it by the observed fraction. At partition time, send a sample with \(x_j\) missing down <strong>both</strong> branches with weights \(w_L\) and \(w_R\); at prediction, average the leaf distributions it reaches with those weights.</li>
+</ol>
+<h3 id="143-no-feature-scaling-needed-invariance-to-monotone-transforms">14.3 No feature scaling needed: invariance to monotone transforms</h3>
+<p>Let \(h\) be any strictly increasing function. Then \(x_j \le \theta \iff h(x_j) \le h(\theta)\), so the partition produced by every candidate split — and therefore every \(\Delta I\), every chosen split, and every prediction — is unchanged if \(x_j\) is replaced by \(h(x_j)\). Standardisation, log transforms and rank transforms are all irrelevant to the fitted tree (only the stored threshold values change). Outliers in \(x\) are harmless: they only affect the threshold placement between neighbours.</p>
+<h3 id="144-the-bias-towards-many-valued-features-in-numbers">14.4 The bias towards many-valued features, in numbers</h3>
+<p>Return to the worked example's root (\(H = 0.9852\) bits):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Split</th>
+<th style="text-align: right;">IG (bits)</th>
+<th style="text-align: right;">SplitInfo (bits)</th>
+<th style="text-align: right;">Gain ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prior: 3-way (Low / Medium / High)</td>
+<td style="text-align: right;">0.4417</td>
+<td style="text-align: right;">1.5774</td>
+<td style="text-align: right;">0.2800</td>
+</tr>
+<tr>
+<td>Prior: binary {High} vs rest</td>
+<td style="text-align: right;">0.3949</td>
+<td style="text-align: right;">0.9403</td>
+<td style="text-align: right;"><strong>0.4200</strong></td>
+</tr>
+<tr>
+<td>Age ≤ 67.5</td>
+<td style="text-align: right;">0.2917</td>
+<td style="text-align: right;">0.8631</td>
+<td style="text-align: right;">0.3380</td>
+</tr>
+<tr>
+<td>Age ≤ 59.5</td>
+<td style="text-align: right;">0.2578</td>
+<td style="text-align: right;">1.0000</td>
+<td style="text-align: right;">0.2578</td>
+</tr>
+<tr>
+<td>Patient ID (14-way)</td>
+<td style="text-align: right;"><strong>0.9852</strong></td>
+<td style="text-align: right;">3.8074</td>
+<td style="text-align: right;">0.2588</td>
+</tr>
+</tbody>
+</table></div>
+<p>Raw information gain would choose the <strong>patient ID</strong> — a useless identifier — because a 14-way split memorises every label. The multi-way Prior split also beats the binary one on IG. Gain ratio removes both artefacts. With binary splits only, the ID column could still be split by its (meaningless) numeric order, which is one more reason to drop identifiers before training.</p>
+<p>The same bias affects <strong>feature importance</strong> (Section 17.2): continuous and high-cardinality features have more candidate splits, so by chance alone they find larger apparent gains (Strobl et al., 2007).</p>
+
+<h2 id="15-computational-complexity"><span class="secnum">15</span>Computational complexity</h2>
+<p>Let \(N\) be the number of samples, \(d\) the number of features, \(D\) the final depth.</p>
+<p><strong>Split search at one node.</strong> For each continuous feature: sort (\(O(n_t\log n_t)\)), then a linear scan (\(O(n_t)\)). For each categorical feature with \(L\) levels: count per level (\(O(n_t)\)), sort levels (\(O(L\log L)\)), scan (\(O(L)\)). Total per node: \(O(d\,n_t \log n_t)\).</p>
+<p><strong>Whole tree.</strong> The nodes at any one depth hold disjoint subsets of the data, so the work per level is at most \(O(d\,N\log N)\), and</p>
+<div class="eq">\[\text{training time} = O(d\,N\log N \cdot D).\]</div>
+<p><strong>Pre-sorting.</strong> Sorting each feature once at the root (\(O(dN\log N)\)) and maintaining sorted index lists as samples are partitioned reduces each level to \(O(dN)\), giving \(O(dN\log N + dND)\).</p>
+<p><strong>Depth.</strong> A balanced tree has \(D \approx \log_2 N\), so training is \(O(dN\log^2 N)\) (or \(O(dN\log N)\) with pre-sorting). A degenerate tree that peels off one sample per split has \(D = N - 1\), and training becomes \(O(dN^2\log N)\) — another reason to set \(n_{\text{leaf}}\) or \(D_{\max}\).</p>
+<p><strong>Prediction:</strong> \(O(D)\) per sample. <strong>Memory:</strong> \(O(\lvert\tilde T\rvert)\) nodes, at most \(2N - 1\).</p>
+<p><strong>Cost-complexity pruning</strong> adds \(O(\lvert\tilde T\rvert^2)\) in the simple implementation (recompute \(g(t)\) each round), plus \(V\) extra tree fits for cross-validation.</p>
+
+<h2 id="16-evaluating-the-classifier"><span class="secnum">16</span>Evaluating the classifier</h2>
+<h3 id="161-never-evaluate-on-the-training-data">16.1 Never evaluate on the training data</h3>
+<p>Resubstitution error is optimistically biased (zero for a full tree). Use a held-out test set, \(V\)-fold cross-validation, or — for very small data — leave-one-out. Whatever data is used to <em>choose</em> \(\alpha\) or depth cannot also be used to <em>report</em> final performance; use nested cross-validation or a final untouched test set.</p>
+<h3 id="162-threshold-based-metrics">16.2 Threshold-based metrics</h3>
+<p>From the confusion matrix (TP, FP, TN, FN) at a chosen threshold \(\tau\):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Formula</th>
+<th>Question answered</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Accuracy</td>
+<td>\(\frac{TP + TN}{TP+FP+TN+FN}\)</td>
+<td>how often is it right? (misleading under imbalance)</td>
+</tr>
+<tr>
+<td>Sensitivity / recall / TPR</td>
+<td>\(\frac{TP}{TP + FN}\)</td>
+<td>of the true positives, how many are caught?</td>
+</tr>
+<tr>
+<td>Specificity / TNR</td>
+<td>\(\frac{TN}{TN + FP}\)</td>
+<td>of the true negatives, how many are cleared?</td>
+</tr>
+<tr>
+<td>Precision / PPV</td>
+<td>\(\frac{TP}{TP + FP}\)</td>
+<td>of those flagged, how many are truly positive?</td>
+</tr>
+<tr>
+<td>\(F_1\)</td>
+<td>\(\frac{2\cdot\text{precision}\cdot\text{recall}}{\text{precision} + \text{recall}}\)</td>
+<td>harmonic balance of the two</td>
+</tr>
+<tr>
+<td>Balanced accuracy</td>
+<td>\(\frac{1}{2}(\text{TPR} + \text{TNR})\)</td>
+<td>accuracy that ignores class proportions</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="163-roc-curves-and-auc-from-a-tree">16.3 ROC curves and AUC from a tree</h3>
+<p>A tree outputs one of at most \(\lvert\tilde T\rvert\) distinct probabilities. Sorting the leaves by \(\hat p_m\) and lowering the threshold past each one in turn traces an ROC curve with at most \(\lvert\tilde T\rvert + 1\) vertices joined by straight segments. Each segment corresponds to one leaf; its slope is the leaf's likelihood ratio \(\frac{n_{m1}/N_1}{n_{m0}/N_0}\), so sorting by \(\hat p_m\) (equivalently by slope) makes the training ROC curve concave.</p>
+<p>The area under the curve has a direct probabilistic meaning (the Mann–Whitney identity):</p>
+<div class="eq">\[\mathrm{AUC} = P\big(\hat p(\mathbf{x}^{+}) &gt; \hat p(\mathbf{x}^{-})\big) + \tfrac12 P\big(\hat p(\mathbf{x}^{+}) = \hat p(\mathbf{x}^{-})\big),\]</div>
+<p>for a random positive \(\mathbf{x}^{+}\) and random negative \(\mathbf{x}^{-}\). Ties — common with few leaves — count half.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig15_roc.svg" alt="ROC curves on test data for trees of depth 2, depth 5 and fully grown" loading="lazy"></div><figcaption><span class="fig-num">Figure 10.</span> Test-set ROC curves (synthetic data; 500 training, 3,000 test points). The depth-2 tree has 4 leaves and therefore only a few vertices. The depth-5 tree (19 leaves) ranks best (AUC 0.912). The fully grown tree (71 leaves) has nearly all leaves pure, so its scores are almost all 0 or 1: it collapses towards a single operating point and its AUC drops to 0.844.</figcaption></figure>
+<h3 id="164-probability-quality-brier-score-log-loss-and-calibration">16.4 Probability quality: Brier score, log-loss and calibration</h3>
+<ul>
+<li><strong>Brier score</strong> \(= \frac{1}{N}\sum_i (y_i - \hat p(\mathbf{x}_i))^2\) — the criterion Gini splitting optimises in-sample (Section 10.2).</li>
+<li><strong>Log-loss</strong> \(= -\frac{1}{N}\sum_i \big[y_i\ln\hat p(\mathbf{x}_i) + (1-y_i)\ln(1-\hat p(\mathbf{x}_i))\big]\) — the criterion entropy splitting optimises in-sample (Section 10.1). A single test sample landing in a pure leaf of the wrong class gives <strong>infinite</strong> log-loss — another reason for Laplace smoothing (Section 9.3).</li>
+<li><strong>Calibration</strong>: among all samples given \(\hat p \approx 0.3\), about 30% should be positive. Plot observed positive rate against predicted probability in bins. Deep trees are typically <strong>over-confident</strong> (probabilities pushed to 0 and 1); smoothing and pruning both help.</li>
+</ul>
+
+<h2 id="17-interpreting-the-tree"><span class="secnum">17</span>Interpreting the tree</h2>
+<h3 id="171-rules">17.1 Rules</h3>
+<p>Each leaf is a conjunction of conditions (Section 7.9). Rules can be simplified: conditions that become redundant along a path (e.g. "Age &gt; 50 and Age &gt; 59.5") collapse to the tighter one, and C4.5's <em>rule post-pruning</em> drops conditions whose removal does not raise the pessimistic error.</p>
+<h3 id="172-mean-decrease-in-impurity-mdi-feature-importance">17.2 Mean decrease in impurity (MDI) feature importance</h3>
+<p>The importance of feature \(j\) is the total, sample-weighted impurity decrease of all splits that use it:</p>
+<div class="eq">\[\mathrm{Imp}(j) = \sum_{t \,:\, \text{split on } j} \frac{n_t}{N}\,\Delta I(s_t, t), \qquad \text{usually normalised so that } \sum_j \mathrm{Imp}(j) = 1.\]</div>
+<p>A neat identity: summing over all splits telescopes, so</p>
+<div class="eq">\[\sum_j \mathrm{Imp}(j) = I(\text{root}) - \sum_{m \in \tilde T}\frac{n_m}{N} I(m).\]</div>
+<p>For a tree with pure leaves, the importances sum to the root impurity.</p>
+<p><strong>Worked example (Gini):</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Split(s)</th>
+<th>\(\frac{n_t}{N}\Delta G\)</th>
+<th style="text-align: right;">Normalised</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prior admissions</td>
+<td>root</td>
+<td>\(\frac{14}{14} \times 0.2041 = 0.2041\)</td>
+<td style="text-align: right;">41.7%</td>
+</tr>
+<tr>
+<td>Age</td>
+<td>node \(A\)</td>
+<td>\(\frac{9}{14} \times 0.2778 = 0.1786\)</td>
+<td style="text-align: right;">36.5%</td>
+</tr>
+<tr>
+<td>Diabetes</td>
+<td>node \(B\)</td>
+<td>\(\frac{4}{14} \times 0.3750 = 0.1071\)</td>
+<td style="text-align: right;">21.9%</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td>\(0.4898 = G(\text{root})\) ✓</td>
+<td style="text-align: right;">100%</td>
+</tr>
+</tbody>
+</table></div>
+<p>Caveats: MDI is computed on training data (so it rewards overfitted splits), is biased towards features with many candidate splits (Section 14.4), and splits credit arbitrarily between correlated features. <strong>Permutation importance</strong> — the increase in held-out error when feature \(j\)'s values are randomly shuffled — is a less biased alternative.</p>
+<h3 id="173-interactions-are-explicit">17.3 Interactions are explicit</h3>
+<p>A path that tests Prior, then Age, then Diabetes encodes a three-way interaction: the effect of Diabetes is only examined for patients with Prior ≠ High and Age &gt; 59.5. Unlike a linear model, a tree does not need interaction terms specified in advance — but it also cannot represent a simple additive effect compactly (Section 18.1).</p>
+
+<h2 id="18-limitations-and-where-ensembles-come-in"><span class="secnum">18</span>Limitations and where ensembles come in</h2>
+<h3 id="181-axis-aligned-boundaries">18.1 Axis-aligned boundaries</h3>
+<p>Each split is perpendicular to one feature axis. A diagonal boundary such as \(x_2 = x_1\) can only be approximated by a staircase, and an accurate staircase needs many leaves — each estimated from few samples.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig13_staircase.svg" alt="Three panels showing decision regions of depth 2, 4 and 10 trees approximating a diagonal boundary" loading="lazy"></div><figcaption><span class="fig-num">Figure 11.</span> Synthetic data whose true boundary is the diagonal \(x_2 = x_1\). Depth 2 (4 leaves) is crude; depth 10 (20 leaves) fits the training data perfectly but with a jagged, data-dependent staircase. A linear model would need one parameter for what the tree needs 20 leaves for. (Oblique trees, which split on \(\mathbf{a}^\top\mathbf{x} \le \theta\), address this at much higher search cost.)</figcaption></figure>
+<h3 id="182-greedy-myopia-the-xor-problem">18.2 Greedy myopia: the XOR problem</h3>
+<p>When the label depends on an interaction with no marginal effect, every single split looks useless:</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig14_xor_greedy.svg" alt="Left: Gini decrease of every root split on XOR data is near zero; right: two splits together classify perfectly" loading="lazy"></div><figcaption><span class="fig-num">Figure 12.</span> XOR data: \(y = 1\) when exactly one of \(x_1, x_2\) is positive (400 synthetic points). (a) At the root, the best single split reduces Gini by only 0.012 out of 0.5 — indistinguishable from noise, so any reasonable gain threshold stops immediately. (b) Yet splitting at \(x_1 = 0\) and then at \(x_2 = 0\) classifies perfectly. A one-step look-ahead cannot see this.</figcaption></figure>
+<p>Mathematically: for XOR, \(P(y = 1 \mid x_1) = P(y=1 \mid x_2) = \tfrac12\) for every value, so \(p_L = p_R\) in expectation and \(\Delta G = 2w_Lw_R(p_L - p_R)^2 \approx 0\) for every split (Section 5.3). Growing fully and post-pruning (Section 13) handles this better than pre-pruning, because the second-level splits have large gains that justify keeping the weak first split.</p>
+<h3 id="183-instability-high-variance">18.3 Instability (high variance)</h3>
+<p>Small changes in the data can change the root split, and every split below it changes too.</p>
+<figure class="plate"><div class="plate-img"><img src="figures/fig16_instability.svg" alt="Three bootstrap samples of the same data produce three noticeably different depth-6 trees" loading="lazy"></div><figcaption><span class="fig-num">Figure 13.</span> Three bootstrap resamples of the same 200 synthetic points, each fitted with a depth-6 tree. The root thresholds (0.38, 0.26, 0.39) and the resulting decision regions differ visibly — the model's structure is a high-variance function of the sample.</figcaption></figure>
+<h3 id="184-other-limitations">18.4 Other limitations</h3>
+<ul>
+<li><strong>Piecewise-constant probabilities</strong>: \(\hat\eta\) takes at most \(\lvert\tilde T\rvert\) values, so ranking and calibration are coarse.</li>
+<li><strong>No extrapolation</strong>: beyond the range of the training data, predictions are constant at the edge leaf's value.</li>
+<li><strong>Data fragmentation</strong>: each split roughly halves the data available below it; at depth 10 a typical leaf sees \(N/2^{10}\) samples.</li>
+</ul>
+<h3 id="185-ensembles-turn-the-weakness-into-a-strength">18.5 Ensembles turn the weakness into a strength</h3>
+<p>The variance of an average of \(B\) identically distributed predictors, each with variance \(\sigma^2\) and pairwise correlation \(\rho\), is</p>
+<div class="eq">\[\operatorname{Var}\left(\frac{1}{B}\sum_{b=1}^{B}\hat\eta_b(\mathbf{x})\right) = \rho\,\sigma^2 + \frac{1-\rho}{B}\,\sigma^2.\]</div>
+<p>Deep trees have low bias and high variance — ideal raw material for averaging:</p>
+<ul>
+<li><strong>Bagging</strong> (Breiman, 1996): average trees grown on bootstrap samples; the second term shrinks as \(B\) grows.</li>
+<li><strong>Random forests</strong> (Breiman, 2001): additionally pick a random subset of features at each split, lowering \(\rho\) and therefore the first term.</li>
+<li><strong>Gradient boosting</strong>: fit shallow trees sequentially to the residuals (gradients) of the current ensemble, reducing bias instead.</li>
+</ul>
+<p>Every one of these uses the single-tree machinery of this guide as its building block, so a correct from-scratch tree is the foundation for all of them.</p>
+
+<h2 id="19-implementation-blueprint-specification-not-code"><span class="secnum">19</span>Implementation blueprint (specification, not code)</h2>
+<p>This section specifies each component you would write, with its inputs, outputs and the mathematical invariants to test. It is language-independent.</p>
+<h3 id="191-components">19.1 Components</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Component</th>
+<th>Input</th>
+<th>Output</th>
+<th>Defined in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C1</td>
+<td><strong>Data schema</strong></td>
+<td>raw table</td>
+<td>feature types (binary / continuous / ordinal / nominal), category lists, label vector in \(\lbrace 0,1\rbrace\)</td>
+<td>§6</td>
+</tr>
+<tr>
+<td>C2</td>
+<td><strong>Impurity function</strong></td>
+<td>counts \((n_0, n_1)\), optionally weighted</td>
+<td>\(G\), \(H\) or \(E\)</td>
+<td>§4</td>
+</tr>
+<tr>
+<td>C3</td>
+<td><strong>Split scorer</strong></td>
+<td>parent counts, left counts</td>
+<td>\(\Delta I\) (right counts = parent − left)</td>
+<td>§5.1</td>
+</tr>
+<tr>
+<td>C4</td>
+<td><strong>Continuous split finder</strong></td>
+<td>values and labels at node</td>
+<td>best \((\theta, \Delta I)\) via sort + running counts; midpoint thresholds; skip equal values</td>
+<td>§6.2</td>
+</tr>
+<tr>
+<td>C5</td>
+<td><strong>Categorical split finder</strong></td>
+<td>levels and labels at node</td>
+<td>best category set \(A\) via sort-by-rate + contiguous scan</td>
+<td>§6.3</td>
+</tr>
+<tr>
+<td>C6</td>
+<td><strong>Best-split selector</strong></td>
+<td>node samples, feature list</td>
+<td>\((j^{\star}, \text{test}^{\star}, \Delta I^{\star})\) with deterministic tie-breaking</td>
+<td>§8.1</td>
+</tr>
+<tr>
+<td>C7</td>
+<td><strong>Node record</strong></td>
+<td>—</td>
+<td>fields of §8.4</td>
+<td>§8.4</td>
+</tr>
+<tr>
+<td>C8</td>
+<td><strong>Recursive grower</strong></td>
+<td>samples, depth, hyperparameters</td>
+<td>subtree</td>
+<td>§8.1, §12</td>
+</tr>
+<tr>
+<td>C9</td>
+<td><strong>Leaf estimator</strong></td>
+<td>leaf counts, smoothing \(\alpha, \beta\)</td>
+<td>\(\hat p_m\), \(c_m\)</td>
+<td>§9</td>
+</tr>
+<tr>
+<td>C10</td>
+<td><strong>Predictor</strong></td>
+<td>tree, \(\mathbf{x}\), threshold \(\tau\)</td>
+<td>\(\hat p(\mathbf{x})\) and label</td>
+<td>§8.3, §9.4</td>
+</tr>
+<tr>
+<td>C11</td>
+<td><strong>Pruner</strong></td>
+<td>full tree, (validation data or CV folds)</td>
+<td>\(\alpha\)-sequence and selected subtree</td>
+<td>§13</td>
+</tr>
+<tr>
+<td>C12</td>
+<td><strong>Evaluator</strong></td>
+<td>labels, scores</td>
+<td>confusion matrix, metrics, ROC/AUC, Brier, calibration table</td>
+<td>§16</td>
+</tr>
+<tr>
+<td>C13</td>
+<td><strong>Interpreter</strong></td>
+<td>tree</td>
+<td>rule list, MDI importances</td>
+<td>§17</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="192-hyperparameters-to-expose">19.2 Hyperparameters to expose</h3>
+<p>Criterion (Gini / entropy), \(D_{\max}\), \(n_{\text{split}}\), \(n_{\text{leaf}}\), minimum impurity decrease \(\gamma\), maximum leaves, class weights \(\omega_0, \omega_1\), leaf smoothing \((\alpha, \beta)\), pruning \(\alpha\) (or "select by CV with 1-SE rule"), decision threshold \(\tau\), missing-value strategy, random seed (only if features are sampled, e.g. for forests).</p>
+<h3 id="193-verification-checklist">19.3 Verification checklist</h3>
+<p>Each item is a property that must hold mathematically; together they catch nearly every implementation bug.</p>
+<ol>
+<li><strong>Impurity values:</strong> \(G(0)=G(1)=0\), \(G(\tfrac12)=\tfrac12\); \(H(\tfrac12)=1\); symmetry \(I(p) = I(1-p)\).</li>
+<li><strong>Non-negative gain:</strong> every computed \(\Delta G\) and IG is \(\ge 0\) (up to rounding); a split with \(p_L = p_R\) gives exactly 0.</li>
+<li><strong>Closed form:</strong> \(\Delta G = 2w_Lw_R(p_L - p_R)^2\) agrees with the generic formula on every candidate.</li>
+<li><strong>Pure input:</strong> a dataset with one class produces a single leaf.</li>
+<li><strong>Separable input:</strong> when no two identical feature vectors carry different labels, the fully grown tree has zero training error.</li>
+<li><strong>Counts conserve:</strong> at every node \(n_t = n_{t_L} + n_{t_R}\) and \(n_{t1} = n_{t_L 1} + n_{t_R 1}\).</li>
+<li><strong>Monotone invariance:</strong> applying \(\log\) (or any increasing function) to a continuous feature gives the same predictions.</li>
+<li><strong>Label symmetry:</strong> swapping labels 0 ↔ 1 gives the same tree structure with \(\hat p \mapsto 1 - \hat p\).</li>
+<li><strong>Categorical shortcut:</strong> for small \(L\), exhaustive search over all \(2^{L-1}-1\) groupings finds the same best \(\Delta I\) as the sorted contiguous scan.</li>
+<li><strong>Importance identity:</strong> MDI importances sum to \(I(\text{root}) - \sum_m \frac{n_m}{N}I(m)\).</li>
+<li><strong>Likelihood identity:</strong> the root-split log-likelihood gain equals \(n\ln 2 \cdot \mathrm{IG}\).</li>
+<li><strong>Pruning nesting:</strong> the pruned sequence is nested and \(\alpha_k\) strictly increases.</li>
+<li><strong>Golden example:</strong> reproduce Section 7 exactly — root \(\Delta G = 0.2041\), node \(A\) \(\Delta G = 0.2778\), node \(B\) \(\Delta G = 0.3750\), and the \(\alpha\)-sequence \(1/14,\ 1/7,\ 3/14\).</li>
+</ol>
+
+<h2 id="20-formula-sheet"><span class="secnum">20</span>Formula sheet</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Class-1 proportion</td>
+<td>\(p_t = n_{t1}/n_t\)</td>
+</tr>
+<tr>
+<td>Misclassification error</td>
+<td>\(E(p) = \min(p, 1-p)\)</td>
+</tr>
+<tr>
+<td>Gini impurity</td>
+<td>\(G(p) = 1 - p^2 - (1-p)^2 = 2p(1-p)\)</td>
+</tr>
+<tr>
+<td>Entropy (bits)</td>
+<td>\(H(p) = -p\log_2 p - (1-p)\log_2(1-p)\)</td>
+</tr>
+<tr>
+<td>Impurity decrease</td>
+<td>\(\Delta I = I(t) - w_L I(t_L) - w_R I(t_R)\)</td>
+</tr>
+<tr>
+<td>Gini decrease (closed form)</td>
+<td>\(\Delta G = 2w_Lw_R(p_L - p_R)^2\)</td>
+</tr>
+<tr>
+<td>Information gain</td>
+<td>\(\mathrm{IG} = H(Y) - H(Y \mid Z) = \mathcal{I}(Y;Z)\)</td>
+</tr>
+<tr>
+<td>Gain ratio</td>
+<td>\(\mathrm{IG}/\mathrm{SplitInfo}\), \(\ \mathrm{SplitInfo} = -\sum_k \frac{n_k}{n}\log_2\frac{n_k}{n}\)</td>
+</tr>
+<tr>
+<td>Continuous thresholds</td>
+<td>midpoints between consecutive distinct sorted values; optimum at a class boundary</td>
+</tr>
+<tr>
+<td>Categorical shortcut</td>
+<td>sort levels by \(\hat p(\text{level})\); check \(L-1\) contiguous cuts</td>
+</tr>
+<tr>
+<td>Leaf probability (MLE)</td>
+<td>\(\hat p_m = n_{m1}/n_m\)</td>
+</tr>
+<tr>
+<td>Laplace / Beta posterior mean</td>
+<td>\((n_{m1} + \alpha)/(n_m + \alpha + \beta)\)</td>
+</tr>
+<tr>
+<td>Cost-optimal threshold</td>
+<td>predict 1 iff \(\hat p &gt; C_{FP}/(C_{FP} + C_{FN})\)</td>
+</tr>
+<tr>
+<td>Log-likelihood gain of a split</td>
+<td>\(\Delta\ln\hat{\mathcal L} = n_t\ln 2\cdot\mathrm{IG}\)</td>
+</tr>
+<tr>
+<td>G-test statistic</td>
+<td>\(G^2 = 2n_t\ln 2\cdot\mathrm{IG} \sim \chi^2_1\) under \(H_0\)</td>
+</tr>
+<tr>
+<td>Pearson \(\chi^2\) (binary split)</td>
+<td>\(\chi^2 = n_t\,\Delta G / G(t)\)</td>
+</tr>
+<tr>
+<td>Squared-error link</td>
+<td>\(\mathrm{SSE}_t = \tfrac12 n_t G(p_t)\)</td>
+</tr>
+<tr>
+<td>Cost-complexity</td>
+<td>\(R_\alpha(T) = R(T) + \alpha\lvert\tilde T\rvert\)</td>
+</tr>
+<tr>
+<td>Weakest link</td>
+<td>\(g(t) = \dfrac{R(t) - R(T_t)}{\lvert\tilde T_t\rvert - 1}\)</td>
+</tr>
+<tr>
+<td>Pessimistic error</td>
+<td>\(n\cdot U_{CF}(e, n)\) (Wilson upper bound, \(z = 0.674\) at CF = 25%)</td>
+</tr>
+<tr>
+<td>MDI importance</td>
+<td>\(\mathrm{Imp}(j) = \sum_{t:\,j} \frac{n_t}{N}\Delta I(s_t,t)\)</td>
+</tr>
+<tr>
+<td>AUC</td>
+<td>\(P(\hat p^{+} &gt; \hat p^{-}) + \tfrac12 P(\hat p^{+} = \hat p^{-})\)</td>
+</tr>
+<tr>
+<td>Ensemble variance</td>
+<td>\(\rho\sigma^2 + (1-\rho)\sigma^2/B\)</td>
+</tr>
+<tr>
+<td>Training time</td>
+<td>\(O(d\,N\log N\cdot D)\)</td>
+</tr>
+</tbody>
+</table></div>
+
+<h2 id="21-glossary"><span class="secnum">21</span>Glossary</h2>
+<ul>
+<li><strong>Boundary point</strong> — a midpoint between two consecutive sorted values of a continuous feature whose labels differ; the only places an optimal threshold can lie.</li>
+<li><strong>Cost-complexity pruning</strong> — pruning by minimising \(R(T) + \alpha\lvert\tilde T\rvert\); produces a nested sequence of subtrees.</li>
+<li><strong>Depth</strong> — number of edges from the root to a node; the depth of a tree is the maximum over its leaves.</li>
+<li><strong>Deviance</strong> — \(-2\times\) maximised log-likelihood; for a tree \(2\sum_m n_m H_e(\hat p_m)\).</li>
+<li><strong>Gain ratio</strong> — information gain divided by split information; corrects the many-values bias.</li>
+<li><strong>Greedy induction</strong> — choosing each split to maximise immediate gain without look-ahead.</li>
+<li><strong>Impurity</strong> — a concave function of the class distribution that is zero for pure nodes and maximal for evenly mixed ones.</li>
+<li><strong>Information gain</strong> — entropy decrease from a split; equal to mutual information between label and test outcome.</li>
+<li><strong>Leaf (terminal node)</strong> — a node without children; holds the prediction for its region.</li>
+<li><strong>MDI</strong> — mean decrease in impurity; a split-based feature importance.</li>
+<li><strong>Post-pruning</strong> — growing a large tree and then removing subtrees.</li>
+<li><strong>Pre-pruning</strong> — stopping growth early with stopping rules.</li>
+<li><strong>Region</strong> — the subset of feature space \(R_m\) owned by a leaf; an axis-aligned box for numeric features.</li>
+<li><strong>Surrogate split</strong> — a split on another feature that mimics the primary split; used when the primary feature is missing.</li>
+<li><strong>Weakest link</strong> — the internal node with the smallest \(g(t)\), pruned first.</li>
+</ul>
+
+<h2 id="22-references"><span class="secnum">22</span>References</h2>
+<ol>
+<li>Breiman, L., Friedman, J. H., Olshen, R. A., &amp; Stone, C. J. (1984). <em>Classification and Regression Trees</em>. Wadsworth. — The CART book: Gini, binary splits, surrogate splits, cost-complexity pruning, the categorical ordering theorem.</li>
+<li>Quinlan, J. R. (1986). Induction of decision trees. <em>Machine Learning</em>, 1, 81–106. — ID3 and information gain.</li>
+<li>Quinlan, J. R. (1993). <em>C4.5: Programs for Machine Learning</em>. Morgan Kaufmann. — Gain ratio, pessimistic pruning, fractional handling of missing values.</li>
+<li>Quinlan, J. R. (1987). Simplifying decision trees. <em>International Journal of Man-Machine Studies</em>, 27, 221–234. — Reduced-error pruning.</li>
+<li>Hyafil, L., &amp; Rivest, R. L. (1976). Constructing optimal binary decision trees is NP-complete. <em>Information Processing Letters</em>, 5(1), 15–17.</li>
+<li>Fayyad, U. M., &amp; Irani, K. B. (1992). On the handling of continuous-valued attributes in decision tree generation. <em>Machine Learning</em>, 8, 87–102. — The boundary-point theorem.</li>
+<li>Fisher, W. D. (1958). On grouping for maximum homogeneity. <em>Journal of the American Statistical Association</em>, 53, 789–798.</li>
+<li>Kass, G. V. (1980). An exploratory technique for investigating large quantities of categorical data. <em>Applied Statistics</em>, 29(2), 119–127. — CHAID and significance-based splitting.</li>
+<li>Hothorn, T., Hornik, K., &amp; Zeileis, A. (2006). Unbiased recursive partitioning: a conditional inference framework. <em>Journal of Computational and Graphical Statistics</em>, 15(3), 651–674.</li>
+<li>Mingers, J. (1989). An empirical comparison of pruning methods for decision tree induction. <em>Machine Learning</em>, 4, 227–243.</li>
+<li>Strobl, C., Boulesteix, A.-L., Zeileis, A., &amp; Hothorn, T. (2007). Bias in random forest variable importance measures. <em>BMC Bioinformatics</em>, 8, 25.</li>
+<li>Breiman, L. (1996). Bagging predictors. <em>Machine Learning</em>, 24, 123–140.</li>
+<li>Breiman, L. (2001). Random forests. <em>Machine Learning</em>, 45, 5–32.</li>
+<li>Hastie, T., Tibshirani, R., &amp; Friedman, J. (2009). <em>The Elements of Statistical Learning</em> (2nd ed.), §9.2 (trees) and §7 (model assessment). Springer.</li>
+<li>Cover, T. M., &amp; Thomas, J. A. (2006). <em>Elements of Information Theory</em> (2nd ed.). Wiley. — Entropy and mutual information.</li>
+</ol>
+
+<p><em>All figures in this document were generated for it. Synthetic-data figures (2, 10, 11, 13–16) use simulated two-dimensional data and are illustrative; every number quoted for the 14-patient example was computed exactly and can be reproduced by hand.</em></p>
+    </div>
+  </main>
+</div>
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
+  svg: { fontCache: "global" },
+  options: { ignoreHtmlClass: "lab", processHtmlClass: "tex" }
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg-full.js" async></script>
+<script>
+(function () {
+"use strict";
+var $ = function (s, r) { return (r || document).querySelector(s); };
+var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+var NS = "http://www.w3.org/2000/svg";
+function S(tag, attrs, parent, text) {
+  var e = document.createElementNS(NS, tag);
+  if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function clear(e) { while (e.firstChild) e.removeChild(e.firstChild); }
+function fx(x, d) { return Number.isFinite(x) ? x.toFixed(d) : "—"; }
+function fp(p) { if (!Number.isFinite(p)) return "—"; if (p < 0.0001) return "< 0.0001"; return p.toFixed(4); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+function cnt(a, b) { return "[" + a + " | " + b + "]"; }
+
+/* ===================== impurities & statistics ===================== */
+function gini(n0, n1) { var n = n0 + n1; if (!n) return 0; var p = n1 / n; return 2 * p * (1 - p); }
+function ent(n0, n1) { var n = n0 + n1; if (!n) return 0; var h = 0, q; if (n0 > 0) { q = n0 / n; h -= q * Math.log2(q); } if (n1 > 0) { q = n1 / n; h -= q * Math.log2(q); } return h; }
+function mis(n0, n1) { var n = n0 + n1; return n ? Math.min(n0, n1) / n : 0; }
+var CRIT = { gini: gini, entropy: ent };
+function Gp(p) { return 2 * p * (1 - p); }
+function Hp(p) { return (p <= 0 || p >= 1) ? 0 : -(p * Math.log2(p) + (1 - p) * Math.log2(1 - p)); }
+function Ep(p) { return Math.min(p, 1 - p); }
+function erfc(x) {
+  var z = Math.abs(x), t = 1 / (1 + 0.5 * z);
+  var r = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418 + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))));
+  return x >= 0 ? r : 2 - r;
+}
+function chi1p(x) { return (Number.isFinite(x) && x >= 0) ? Math.min(1, erfc(Math.sqrt(x / 2))) : NaN; }
+var LF = new Float64Array(2402); for (var i = 1; i < LF.length; i++) LF[i] = LF[i - 1] + Math.log(i);
+function fisher(a, b, c, d) {
+  var r1 = a + b, r2 = c + d, c1 = a + c, n = r1 + r2;
+  if (n >= LF.length) return NaN;
+  function lp(x) { return LF[r1] + LF[r2] + LF[c1] + LF[n - c1] - LF[n] - LF[x] - LF[r1 - x] - LF[c1 - x] - LF[r2 - c1 + x]; }
+  var lo = Math.max(0, c1 - r2), hi = Math.min(r1, c1), p0 = lp(a), s = 0;
+  for (var x = lo; x <= hi; x++) { var l = lp(x); if (l <= p0 + 1e-7) s += Math.exp(l); }
+  return Math.min(1, s);
+}
+function tests(a, b, c, d) {
+  var r1 = a + b, r2 = c + d, k0 = a + c, k1 = b + d, n = r1 + r2;
+  if (!r1 || !r2 || !k0 || !k1) return { chi2: NaN, pchi: NaN, g2: NaN, pg: NaN, pf: NaN };
+  var chi2 = n * Math.pow(a * d - b * c, 2) / (r1 * r2 * k0 * k1);
+  var O = [a, b, c, d], E = [r1 * k0 / n, r1 * k1 / n, r2 * k0 / n, r2 * k1 / n], g2 = 0;
+  for (var k = 0; k < 4; k++) if (O[k] > 0) g2 += 2 * O[k] * Math.log(O[k] / E[k]);
+  return { chi2: chi2, pchi: chi1p(chi2), g2: g2, pg: chi1p(g2), pf: fisher(a, b, c, d) };
+}
+
+/* ===================== generic tree ===================== */
+// features: {name, type:'num'|'bin'|'cat', levels?, fmt?}; X rows of numbers; y in {0,1}
+function candidates(X, y, idx, F, opt) {
+  var crit = CRIT[opt.crit], n = idx.length, n1 = 0;
+  for (var q = 0; q < n; q++) n1 += y[idx[q]];
+  var n0 = n - n1, I = crit(n0, n1), out = [];
+  function push(c) {
+    var nL = c.l0 + c.l1, nR = c.r0 + c.r1;
+    if (!nL || !nR || nL < opt.minLeaf || nR < opt.minLeaf) return;
+    c.gain = I - (nL / n) * crit(c.l0, c.l1) - (nR / n) * crit(c.r0, c.r1);
+    out.push(c);
+  }
+  var order = opt.order || F.map(function (_, j) { return j; });
+  order.forEach(function (j) {
+    var f = F[j];
+    if (f.type === "num") {
+      var s = idx.slice().sort(function (a, b) { return X[a][j] - X[b][j]; }), l0 = 0, l1 = 0;
+      for (var k = 0; k < s.length - 1; k++) {
+        if (y[s[k]]) l1++; else l0++;
+        var v = X[s[k]][j], w = X[s[k + 1]][j];
+        if (v === w) continue;
+        var thr = (v + w) / 2;
+        push({ j: j, type: "num", thr: thr, l0: l0, l1: l1, r0: n0 - l0, r1: n1 - l1, label: f.name + " ≤ " + f.fmt(thr), neg: f.name + " > " + f.fmt(thr) });
+      }
+    } else if (f.type === "bin") {
+      var b0 = 0, b1 = 0;
+      idx.forEach(function (i) { if (X[i][j] === 1) { if (y[i]) b1++; else b0++; } });
+      push({ j: j, type: "bin", l0: b0, l1: b1, r0: n0 - b0, r1: n1 - b1, label: f.name + " = " + f.levels[1], neg: f.name + " = " + f.levels[0] });
+    } else {
+      var C = f.levels.map(function () { return [0, 0]; });
+      idx.forEach(function (i) { C[X[i][j]][y[i]]++; });
+      var pres = f.levels.map(function (_, k) { return k; }).filter(function (k) { return C[k][0] + C[k][1] > 0; });
+      pres.sort(function (a, b) { return (C[a][1] / (C[a][0] + C[a][1])) - (C[b][1] / (C[b][0] + C[b][1])) || a - b; });
+      for (var k2 = 1; k2 < pres.length; k2++) {
+        var up = pres.slice(k2), u0 = 0, u1 = 0;
+        up.forEach(function (lv) { u0 += C[lv][0]; u1 += C[lv][1]; });
+        var names = up.slice().sort(function (a, b) { return a - b; }).map(function (u) { return f.levels[u]; });
+        var comp = f.levels.filter(function (_, k) { return up.indexOf(k) < 0; });
+        push({ j: j, type: "cat", set: up, l0: u0, l1: u1, r0: n0 - u0, r1: n1 - u1,
+          label: names.length === 1 ? f.name + " = " + names[0] : f.name + " ∈ {" + names.join(", ") + "}",
+          neg: names.length === 1 ? f.name + " ≠ " + names[0] : (comp.length === 1 ? f.name + " = " + comp[0] : f.name + " ∈ {" + comp.join(", ") + "}") });
+      }
+    }
+  });
+  out.sort(function (a, b) { return b.gain - a.gain; });
+  return { n: n, n0: n0, n1: n1, I: I, cands: out };
+}
+function goesLeft(c, x) { return c.type === "num" ? x[c.j] <= c.thr : c.type === "bin" ? x[c.j] === 1 : c.set.indexOf(x[c.j]) >= 0; }
+function grow(X, y, idx, F, opt, depth, path) {
+  depth = depth || 0; path = path || "r";
+  var cs = candidates(X, y, idx, F, opt);
+  var node = { path: path, idx: idx, n: cs.n, n0: cs.n0, n1: cs.n1, I: cs.I, depth: depth, cands: cs.cands, split: null, left: null, right: null, why: "" };
+  var ov = opt.overrides ? opt.overrides[path] : null;
+  if (ov === "__leaf__") { node.why = "made a leaf by you"; node.forcedLeaf = true; return node; }
+  if (cs.n0 === 0 || cs.n1 === 0) { node.why = "pure"; return node; }
+  if (depth >= opt.maxDepth) { node.why = "maximum depth reached"; return node; }
+  if (cs.n < (opt.minSplit || 2) || !cs.cands.length) { node.why = cs.cands.length ? "too few samples to split" : "no valid split (minimum leaf size)"; return node; }
+  var c = cs.cands[0];
+  if (ov) { var f = cs.cands.filter(function (k) { return k.label === ov; })[0]; if (f) { c = f; node.forced = true; } }
+  if (!node.forced && c.gain <= 1e-12) { node.why = "no split reduces impurity"; return node; }
+  node.split = c;
+  var L = [], R = [];
+  idx.forEach(function (i) { (goesLeft(c, X[i]) ? L : R).push(i); });
+  node.left = grow(X, y, L, F, opt, depth + 1, path + "L");
+  node.right = grow(X, y, R, F, opt, depth + 1, path + "R");
+  return node;
+}
+function leafOf(node, x, maxD) { while (node.split && (maxD == null || node.depth < maxD)) node = goesLeft(node.split, x) ? node.left : node.right; return node; }
+function predClass(node) { return node.n1 >= node.n0 ? 1 : 0; }
+function walkNodes(root, fn, isLeaf) { (function w(n) { fn(n); if (!(isLeaf ? isLeaf(n) : !n.split)) { w(n.left); w(n.right); } })(root); }
+function findPath(root, path) { var n = root; for (var k = 1; k < path.length; k++) { if (!n || !n.split) return null; n = path[k] === "L" ? n.left : n.right; } return n; }
+function conditions(root, path) {
+  var out = [], n = root;
+  for (var k = 1; k < path.length; k++) { out.push(path[k] === "L" ? n.split.label : n.split.neg); n = path[k] === "L" ? n.left : n.right; }
+  return out;
+}
+
+/* ===================== tree drawing ===================== */
+function renderTree(svg, root, o) {
+  clear(svg);
+  var isLeaf = o.isLeaf || function (n) { return !n.split; };
+  var W = 178, H = 70, DX = 192, DY = 104, PAD = 16, k = 0, maxD = 0, nodes = [];
+  (function walk(n) {
+    maxD = Math.max(maxD, n.depth);
+    if (isLeaf(n)) n._x = k++; else { walk(n.left); walk(n.right); n._x = (n.left._x + n.right._x) / 2; }
+    nodes.push(n);
+  })(root);
+  var w = PAD * 2 + (k - 1) * DX + W, h = PAD * 2 + maxD * DY + H;
+  svg.setAttribute("viewBox", "0 0 " + w + " " + h); svg.style.width = "100%"; svg.style.maxWidth = w + "px"; svg.style.minWidth = Math.round(w * 0.7) + "px";
+  function cx(n) { return PAD + n._x * DX + W / 2; }
+  function cy(n) { return PAD + n.depth * DY + H / 2; }
+  var onPath = o.onPath || {};
+  var gE = S("g", null, svg), gN = S("g", null, svg);
+  nodes.forEach(function (n) {
+    if (isLeaf(n)) return;
+    [[n.left, "yes"], [n.right, "no"]].forEach(function (pair) {
+      var ch = pair[0], hot = onPath[n.path] && onPath[ch.path];
+      var x1 = cx(n), y1 = cy(n) + H / 2, x2 = cx(ch), y2 = cy(ch) - H / 2;
+      S("line", { x1: x1, y1: y1, x2: x2, y2: y2, "class": "s-edge" + (hot ? " onpath" : "") }, gE);
+      var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      S("rect", { x: mx - 14, y: my - 9, width: 28, height: 16, rx: 4, "class": "s-band" }, gE);
+      S("text", { x: mx, y: my + 3.5, "text-anchor": "middle", "font-size": 11, "class": "s-ink2" }, gE, pair[1]);
+    });
+  });
+  nodes.forEach(function (n) {
+    var leaf = isLeaf(n), pc = predClass(n);
+    var g = S("g", { "class": "node-g", transform: "translate(" + (cx(n) - W / 2) + "," + (cy(n) - H / 2) + ")" }, gN);
+    if (o.onSelect) {
+      g.setAttribute("tabindex", "0"); g.setAttribute("role", "button");
+      g.setAttribute("aria-label", (leaf ? "Leaf" : n.split.label) + ", " + n.n + " samples");
+      g.addEventListener("click", function () { o.onSelect(n.path); });
+      g.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); o.onSelect(n.path); } });
+    }
+    var cls = "s-node" + (leaf ? (pc ? " leaf1" : " leaf0") : "") + (o.selected === n.path ? " sel" : (onPath[n.path] ? " onpath" : ""));
+    S("rect", { width: W, height: H, rx: 9, "class": cls }, g);
+    var l1 = leaf ? "Leaf → predict " + pc : n.split.label + " ?";
+    S("text", { x: W / 2, y: 21, "text-anchor": "middle", "font-size": 12.5, "font-weight": 600, "class": "s-ink" }, g, l1);
+    S("text", { x: W / 2, y: 40, "text-anchor": "middle", "font-size": 11.5, "class": "s-ink mono" }, g, "n = " + n.n + "   " + cnt(n.n0, n.n1));
+    var l3 = o.line3 ? o.line3(n) : (o.critLabel || "Gini") + " = " + fx(n.I, 3) + "   p̂ = " + fx(n.n1 / n.n, 2);
+    S("text", { x: W / 2, y: 58, "text-anchor": "middle", "font-size": 11, "class": "s-ink2 mono" }, g, l3);
+    if (n.forced || n.forcedLeaf) { S("circle", { cx: W - 9, cy: 9, r: 4, "class": "s-acc-fill" }, g); S("title", null, g, "Chosen by you"); }
+  });
+}
+
+/* ===================== shared state: the 14 patients ===================== */
+var PAT = [[45,0,0,0],[52,0,0,0],[61,1,1,1],[70,1,2,1],[38,0,1,0],[66,0,2,1],[58,1,0,0],[73,1,1,1],[49,1,1,0],[68,1,0,1],[44,0,2,1],[55,1,2,1],[77,1,2,1],[67,0,0,0]];
+var PX = PAT.map(function (r) { return [r[0], r[1], r[2]]; });
+var Y0 = PAT.map(function (r) { return r[3]; });
+var PF = [
+  { name: "Age", type: "num", fmt: function (t) { return t.toFixed(1); } },
+  { name: "Diabetes", type: "bin", levels: ["No", "Yes"] },
+  { name: "Prior", type: "cat", levels: ["Low", "Medium", "High"] }
+];
+var ORDER = [1, 2, 0];
+var B = { y: Y0.slice(), crit: "gini", maxDepth: 99, minLeaf: 1, overrides: {}, sel: "r", tree: null, listeners: [] };
+function allIdx() { return PAT.map(function (_, i) { return i; }); }
+function bopt(withOv) { return { crit: B.crit, maxDepth: B.maxDepth, minLeaf: B.minLeaf, minSplit: 2, order: ORDER, overrides: withOv ? B.overrides : null }; }
+
+/* ===================== Lab: impurity explorer ===================== */
+(function () {
+  var svg = $("#imp-svg"); if (!svg) return;
+  var sl = $("#imp-p"), half = $("#imp-half");
+  var X0 = 54, X1 = 505, Y0p = 265, Y1p = 15;
+  function sx(p) { return X0 + p * (X1 - X0); }
+  function sy(v) { return Y0p - v / 1.05 * (Y0p - Y1p); }
+  function curve(f) { var d = ""; for (var k = 0; k <= 200; k++) { var p = k / 200; d += (k ? "L" : "M") + sx(p).toFixed(1) + "," + sy(f(p)).toFixed(1); } return d; }
+  function draw() {
+    var p = +sl.value; $("#imp-pv").textContent = p.toFixed(2);
+    clear(svg);
+    for (var v = 0; v <= 1.0001; v += 0.25) { S("line", { x1: X0, x2: X1, y1: sy(v), y2: sy(v), "class": "s-grid" }, svg); S("text", { x: X0 - 8, y: sy(v) + 4, "text-anchor": "end", "font-size": 13, "class": "s-muted mono" }, svg, v.toFixed(2)); }
+    for (var t = 0; t <= 1.0001; t += 0.25) S("text", { x: sx(t), y: Y0p + 18, "text-anchor": "middle", "font-size": 13, "class": "s-muted mono" }, svg, t.toFixed(2));
+    S("text", { x: (X0 + X1) / 2, y: Y0p + 34, "text-anchor": "middle", "font-size": 13.5, "class": "s-ink2" }, svg, "p = proportion of class 1");
+    S("path", { d: curve(Ep), "class": "s-line-muted", "stroke-width": 2 }, svg);
+    S("path", { d: curve(Gp), "class": "s-accent" }, svg);
+    S("path", { d: curve(Hp), "class": "s-violet" }, svg);
+    if (half.checked) S("path", { d: curve(function (q) { return Hp(q) / 2; }), "class": "s-violet", "stroke-width": 1.4, opacity: 0.55 }, svg);
+    S("line", { x1: sx(p), x2: sx(p), y1: Y0p, y2: Y1p, "class": "s-line-muted", "stroke-width": 1 }, svg);
+    [[Hp(p), "s-violet-fill"], [Gp(p), "s-acc-fill"], [Ep(p), "s-muted"]].forEach(function (a) { S("circle", { cx: sx(p), cy: sy(a[0]), r: 5, "class": a[1] + " s-ring" }, svg); });
+    var He = Hp(p) * Math.LN2;
+    var n1 = Math.round(20 * p);
+    $("#imp-kv").innerHTML =
+      "<dt>p</dt><dd>" + p.toFixed(2) + "</dd>" +
+      "<dt>Misclassification E</dt><dd>" + fx(Ep(p), 4) + "</dd>" +
+      "<dt>Gini G</dt><dd>" + fx(Gp(p), 4) + "</dd>" +
+      "<dt>Entropy H (bits)</dt><dd>" + fx(Hp(p), 4) + "</dd>" +
+      "<dt>Entropy (nats)</dt><dd>" + fx(He, 4) + (He + 1e-12 >= Gp(p) ? "  ≥ G ✓" : "") + "</dd>" +
+      "<dt>H/2 − G</dt><dd>" + fx(Hp(p) / 2 - Gp(p), 4) + "</dd>";
+    var d = $("#imp-dots"); clear(d);
+    for (var k = 0; k < 20; k++) {
+      var x = 12 + (k % 10) * 21, yy = 22 + Math.floor(k / 10) * 34;
+      if (k < 20 - n1) S("circle", { cx: x, cy: yy, r: 7, "class": "s-c0" }, d);
+      else S("path", { d: "M" + x + "," + (yy - 8) + "L" + (x + 8) + "," + (yy + 6) + "L" + (x - 8) + "," + (yy + 6) + "Z", "class": "s-c1" }, d);
+    }
+    $("#imp-note").textContent = "As 20 samples: " + (20 - n1) + " of class 0 (circles) and " + n1 + " of class 1 (triangles).";
+  }
+  sl.addEventListener("input", draw); half.addEventListener("change", draw); draw();
+})();
+
+/* ===================== Lab: split calculator ===================== */
+(function () {
+  var ids = ["sl-l0", "sl-l1", "sl-r0", "sl-r1"]; if (!$("#sl-l0")) return;
+  function val(id) { var v = Math.floor(+$("#" + id).value); return Number.isFinite(v) && v >= 0 ? Math.min(v, 500) : 0; }
+  function draw() {
+    var a = val("sl-l0"), b = val("sl-l1"), c = val("sl-r0"), d = val("sl-r1");
+    var nL = a + b, nR = c + d, n = nL + nR, P0 = a + c, P1 = b + d;
+    var bars = $("#sl-bars"); bars.innerHTML = "";
+    [[a, b], [c, d]].forEach(function (ch) {
+      var tot = ch[0] + ch[1], box = document.createElement("div");
+      box.style.flex = String(Math.max(tot, 0.0001));
+      if (tot) box.innerHTML = '<i style="flex:' + ch[0] + ';background:var(--c0)"></i><i style="flex:' + ch[1] + ';background:var(--c1)"></i>';
+      bars.appendChild(box);
+    });
+    function row(nm, x0, x1) { var t = x0 + x1; return "<tr><td>" + nm + "</td><td class='mono'>" + t + "</td><td class='mono'>" + cnt(x0, x1) + "</td><td class='mono'>" + (t ? fx(x1 / t, 3) : "—") + "</td><td class='mono'>" + fx(mis(x0, x1), 4) + "</td><td class='mono'>" + fx(gini(x0, x1), 4) + "</td><td class='mono'>" + fx(ent(x0, x1), 4) + "</td></tr>"; }
+    $("#sl-nodes").innerHTML = "<thead><tr><th>Node</th><th>n</th><th>[n₀ | n₁]</th><th>p</th><th>E</th><th>Gini</th><th>H</th></tr></thead><tbody>" + row("Parent", P0, P1) + row("Left", a, b) + row("Right", c, d) + "</tbody>";
+    var ok = nL > 0 && nR > 0;
+    var wL = ok ? nL / n : NaN, wR = ok ? nR / n : NaN, pL = nL ? b / nL : NaN, pR = nR ? d / nR : NaN;
+    var dE = ok ? mis(P0, P1) - wL * mis(a, b) - wR * mis(c, d) : NaN;
+    var dG = ok ? gini(P0, P1) - wL * gini(a, b) - wR * gini(c, d) : NaN;
+    var dGc = ok ? 2 * wL * wR * Math.pow(pL - pR, 2) : NaN;
+    var IG = ok ? ent(P0, P1) - wL * ent(a, b) - wR * ent(c, d) : NaN;
+    var SI = ok ? -(wL * Math.log2(wL) + wR * Math.log2(wR)) : NaN;
+    var T = ok ? tests(a, b, c, d) : { chi2: NaN, pchi: NaN, g2: NaN, pg: NaN, pf: NaN };
+    function g(nm, v, note) { return "<tr><td>" + nm + "</td><td class='mono'>" + v + "</td><td>" + (note || "") + "</td></tr>"; }
+    $("#sl-gains").innerHTML = "<thead><tr><th>Quantity</th><th>Value</th><th>Note</th></tr></thead><tbody>" +
+      g("ΔE (misclassification)", fx(dE, 4)) +
+      g("ΔG (definition)", fx(dG, 4)) +
+      g("ΔG = 2·w<sub>L</sub>·w<sub>R</sub>·(p<sub>L</sub> − p<sub>R</sub>)²", fx(dGc, 4), ok ? "w<sub>L</sub> = " + fx(wL, 3) + ", p<sub>L</sub> − p<sub>R</sub> = " + fx(pL - pR, 3) : "") +
+      g("Information gain (bits)", fx(IG, 4)) +
+      g("Gain ratio", fx(SI > 0 ? IG / SI : NaN, 4), "SplitInfo = " + fx(SI, 4)) +
+      g("Pearson χ²", fx(T.chi2, 3), "p = " + fp(T.pchi) + (ok && gini(P0, P1) > 0 ? " · n·ΔG/G = " + fx(n * dG / gini(P0, P1), 3) : "")) +
+      g("G² = 2n·ln2·IG", fx(T.g2, 3), "p = " + fp(T.pg)) +
+      g("Fisher exact (two-sided)", fp(T.pf), "") + "</tbody>";
+    var msg;
+    if (!ok) msg = "One child is empty, so this is not a valid split.";
+    else if (dG < 1e-12) msg = "<b>The children have the same class proportion,</b> so every criterion gives zero gain. The test outcome is independent of the label.";
+    else if (dE < 1e-12) msg = "<b>Both children predict the same class,</b> so the training error does not change (ΔE = 0). Gini and entropy still reward the split because one child became purer. This is the strict-concavity argument of Section 5.2.";
+    else msg = "<b>All three criteria reward this split.</b>";
+    if (ok && Number.isFinite(T.pf)) msg += " Fisher's exact p = " + fp(T.pf) + (T.pf < 0.01 ? ": strong evidence that the split reflects real structure." : T.pf < 0.05 ? ": evidence at the 5% level." : ": no evidence that the split reflects anything beyond chance.");
+    if (ok && Math.min(nL, nR) / n < 0.05 && dG > 0) msg += " Note how small w<sub>L</sub>·w<sub>R</sub> is: peeling off a tiny child earns little Gini decrease.";
+    $("#sl-explain").innerHTML = msg;
+  }
+  ids.forEach(function (id) { $("#" + id).addEventListener("input", draw); });
+  $$("[data-preset]").forEach(function (btn) {
+    btn.addEventListener("click", function () { btn.getAttribute("data-preset").split(",").forEach(function (v, k) { $("#" + ids[k]).value = v; }); draw(); });
+  });
+  draw();
+})();
+
+/* ===================== Lab: threshold scanner ===================== */
+var Scan = (function () {
+  var svg = $("#sc-svg"); if (!svg) return null;
+  var mode = "root", sl = $("#sc-th"), cur = null;
+  var XA = 60, XB = 660, YA = 236, YB = 18, RUG = 268;
+  function sx(a) { return XA + (a - 35) / 45 * (XB - XA); }
+  function compute() {
+    var idx = allIdx().filter(function (i) { return mode === "root" || PX[i][2] !== 2; });
+    var y = B.y, n = idx.length, n1 = 0; idx.forEach(function (i) { n1 += y[i]; }); var n0 = n - n1;
+    var G = gini(n0, n1), H = ent(n0, n1);
+    var s = idx.slice().sort(function (a, b) { return PX[a][0] - PX[b][0]; });
+    var groups = []; s.forEach(function (i) { var v = PX[i][0], last = groups[groups.length - 1]; if (last && last.v === v) last.cls[y[i]] = 1; else { var c = [0, 0]; c[y[i]] = 1; groups.push({ v: v, cls: c }); } });
+    var th = [], l0 = 0, l1 = 0, k = 0;
+    for (var q = 0; q < groups.length - 1; q++) {
+      while (k < s.length && PX[s[k]][0] === groups[q].v) { if (y[s[k]]) l1++; else l0++; k++; }
+      var t = (groups[q].v + groups[q + 1].v) / 2, r0 = n0 - l0, r1 = n1 - l1, nL = l0 + l1, nR = r0 + r1;
+      var dG = G - nL / n * gini(l0, l1) - nR / n * gini(r0, r1), IG = H - nL / n * ent(l0, l1) - nR / n * ent(r0, r1);
+      var a = groups[q].cls, b = groups[q + 1].cls;
+      var pureA = a[0] + a[1] === 1, pureB = b[0] + b[1] === 1, same = pureA && pureB && a[1] === b[1];
+      th.push({ t: t, l0: l0, l1: l1, r0: r0, r1: r1, dG: dG, IG: IG, rg: G > 0 ? dG / G : 0, re: H > 0 ? IG / H : 0, bnd: !same });
+    }
+    return { idx: idx, n: n, n0: n0, n1: n1, G: G, H: H, th: th };
+  }
+  function best(th, key) { var b = 0; th.forEach(function (o, k) { if (o[key] > th[b][key] + 1e-12) b = k; }); return b; }
+  function draw(resetSlider) {
+    cur = compute(); var th = cur.th;
+    if (!th.length) { clear(svg); $("#sc-explain").textContent = "All patients at this node have the same age, so there is no threshold to scan."; return; }
+    sl.max = th.length - 1;
+    if (resetSlider || +sl.value > th.length - 1) sl.value = best(th, "dG");
+    var k = +sl.value, o = th[k];
+    var ymax = Math.max(0.9, Math.max.apply(null, th.map(function (q) { return Math.max(q.rg, q.re); })) + 0.08);
+    function sy(v) { return YA - v / ymax * (YA - YB); }
+    clear(svg);
+    th.forEach(function (q) { if (q.bnd) S("rect", { x: sx(q.t) - 5, y: YB, width: 10, height: YA - YB, "class": "s-band" }, svg); });
+    for (var v = 0; v <= ymax + 1e-9; v += 0.2) { S("line", { x1: XA, x2: XB, y1: sy(v), y2: sy(v), "class": "s-grid" }, svg); S("text", { x: XA - 8, y: sy(v) + 4, "text-anchor": "end", "font-size": 11, "class": "s-muted mono" }, svg, (v * 100).toFixed(0) + "%"); }
+    for (var a = 35; a <= 80; a += 5) S("text", { x: sx(a), y: RUG + 26, "text-anchor": "middle", "font-size": 11, "class": "s-muted mono" }, svg, a);
+    S("line", { x1: sx(o.t), x2: sx(o.t), y1: YB - 4, y2: RUG + 10, "class": "s-accent", "stroke-width": 1.5 }, svg);
+    [["re", "s-violet", "s-violet-fill"], ["rg", "s-accent", "s-acc-fill"]].forEach(function (z) {
+      var d = th.map(function (q, i) { return (i ? "L" : "M") + sx(q.t).toFixed(1) + "," + sy(q[z[0]]).toFixed(1); }).join("");
+      S("path", { d: d, "class": z[1] }, svg);
+      th.forEach(function (q, i) {
+        var c = S("circle", { cx: sx(q.t), cy: sy(q[z[0]]), r: i === k ? 6.5 : 4.5, "class": z[2] + " s-ring", style: "cursor:pointer" }, svg);
+        c.addEventListener("click", function () { sl.value = i; draw(false); });
+      });
+    });
+    cur.idx.forEach(function (i) {
+      var x = sx(PX[i][0]), yy = RUG;
+      if (B.y[i]) S("path", { d: "M" + x + "," + (yy - 7) + "L" + (x + 7) + "," + (yy + 5) + "L" + (x - 7) + "," + (yy + 5) + "Z", "class": "s-c1 s-ring" }, svg);
+      else S("circle", { cx: x, cy: yy, r: 5.5, "class": "s-c0 s-ring" }, svg);
+    });
+    S("text", { x: sx(o.t) + 6, y: YB + 10, "font-size": 11.5, "class": "s-ink mono" }, svg, "Age ≤ " + o.t.toFixed(1));
+    $("#sc-thv").textContent = "Age ≤ " + o.t.toFixed(1);
+    var bg = th[best(th, "dG")], be = th[best(th, "IG")];
+    $("#sc-explain").innerHTML = "<b>Age ≤ " + o.t.toFixed(1) + "</b> sends " + cnt(o.l0, o.l1) + " left and " + cnt(o.r0, o.r1) + " right. " +
+      "ΔG = " + fx(o.dG, 4) + " (" + fx(100 * o.rg, 1) + "% of the parent's Gini " + fx(cur.G, 4) + "), IG = " + fx(o.IG, 4) + " bits (" + fx(100 * o.re, 1) + "% of " + fx(cur.H, 4) + "). " +
+      (o.bnd ? "This is a class-boundary midpoint. " : "This is <b>not</b> a boundary point, so it cannot be optimal. ") +
+      "Best Gini threshold: " + bg.t.toFixed(1) + "; best entropy threshold: " + be.t.toFixed(1) + (bg === be ? " (they agree)." : " (they disagree).");
+  }
+  $$("#sc-node button").forEach(function (b) { b.addEventListener("click", function () { mode = b.getAttribute("data-v"); $$("#sc-node button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); draw(true); }); });
+  sl.addEventListener("input", function () { draw(false); });
+  draw(true);
+  return { refresh: function () { draw(false); } };
+})();
+
+/* ===================== Lab: tree builder ===================== */
+(function () {
+  var svg = $("#b-tree"); if (!svg) return;
+  var critLabel = function () { return B.crit === "gini" ? "Gini" : "H"; };
+  function build() {
+    B.tree = grow(PX, B.y, allIdx(), PF, bopt(true));
+    if (!findPath(B.tree, B.sel)) B.sel = "r";
+    render();
+    B.listeners.forEach(function (f) { f(); });
+  }
+  function stats() {
+    var leaves = 0, depth = 0, err = 0;
+    walkNodes(B.tree, function (n) { if (!n.split) { leaves++; depth = Math.max(depth, n.depth); } });
+    PX.forEach(function (x, i) { if (predClass(leafOf(B.tree, x)) !== B.y[i]) err++; });
+    var loo = 0;
+    for (var i = 0; i < PX.length; i++) {
+      var idx = allIdx().filter(function (k) { return k !== i; });
+      var t = grow(PX, B.y, idx, PF, bopt(false));
+      if (predClass(leafOf(t, PX[i])) !== B.y[i]) loo++;
+    }
+    var n1 = B.y.reduce(function (a, b) { return a + b; }, 0), base = Math.min(n1, 14 - n1);
+    $("#b-stats").innerHTML =
+      '<span class="stat">leaves <b>' + leaves + '</b></span><span class="stat">depth <b>' + depth + '</b></span>' +
+      '<span class="stat">training errors <b>' + err + ' / 14</b></span>' +
+      '<span class="stat' + (loo >= base ? " warn" : "") + '">leave-one-out errors <b>' + loo + ' / 14</b></span>' +
+      '<span class="stat">majority-class baseline <b>' + base + ' / 14</b></span>';
+  }
+  function patient() {
+    return [+$("#p-age").value, +$("#p-diab").value, +$("#p-prior").value];
+  }
+  function render() {
+    var x = patient(), leaf = leafOf(B.tree, x), onPath = {};
+    for (var k = 1; k <= leaf.path.length; k++) onPath[leaf.path.slice(0, k)] = true;
+    renderTree(svg, B.tree, { selected: B.sel, onPath: onPath, critLabel: critLabel(), onSelect: function (p) { B.sel = p; render(); } });
+    stats(); nodePanel(); predictPanel(leaf); dataTable();
+  }
+  function nodePanel() {
+    var n = findPath(B.tree, B.sel), box = $("#b-node");
+    var cond = conditions(B.tree, n.path);
+    var ov = B.overrides[n.path];
+    var h = "<h5>Selected node: " + (n.path === "r" ? "root" : esc(cond.join(" and "))) + "</h5>";
+    h += "<dl class='kv'><dt>Samples</dt><dd>" + n.n + "   " + cnt(n.n0, n.n1) + "</dd><dt>" + (B.crit === "gini" ? "Gini" : "Entropy") + "</dt><dd>" + fx(n.I, 4) + "</dd><dt>p̂ = n₁/n</dt><dd>" + fx(n.n1 / n.n, 3) + "</dd>";
+    h += "<dt>Status</dt><dd>" + (n.split ? "split on " + esc(n.split.label) + (n.forced ? " (your choice)" : " (best)") : "leaf, " + esc(n.why)) + "</dd></dl>";
+    h += "<div class='controls' style='margin:0.6rem 0'>";
+    if (n.split) h += "<button class='btn small' data-act='leaf'>Make this node a leaf</button>";
+    if (ov) h += "<button class='btn small' data-act='auto'>Restore automatic choice</button>";
+    h += "</div>";
+    if (n.cands.length) {
+      h += "<div class='cand-scroll'><table><thead><tr><th>#</th><th>Candidate split</th><th>Yes</th><th>No</th><th>Δ" + (B.crit === "gini" ? "G" : "H") + "</th><th></th></tr></thead><tbody>";
+      n.cands.forEach(function (c, k) {
+        var inUse = n.split && n.split.label === c.label;
+        h += "<tr" + (inUse ? " class='hl'" : "") + "><td class='mono'>" + (k + 1) + "</td><td>" + esc(c.label) + (k === 0 ? " <span class='pill best'>best</span>" : "") + "</td><td class='mono'>" + cnt(c.l0, c.l1) + "</td><td class='mono'>" + cnt(c.r0, c.r1) + "</td><td class='mono'>" + fx(c.gain, 4) + "</td><td>" +
+          (inUse ? "<span class='note-sm'>in use</span>" : "<button class='btn small' data-use='" + k + "'>Use</button>") + "</td></tr>";
+      });
+      h += "</tbody></table></div><p class='note-sm'>" + n.cands.length + " candidate splits. Prior uses the sorted-category shortcut of Section 6.3.</p>";
+    } else h += "<p class='note-sm'>No candidate splits: every feature is constant here or the minimum leaf size rules them out.</p>";
+    box.innerHTML = h;
+    function clearBelow(p) { Object.keys(B.overrides).forEach(function (k) { if (k.length > p.length && k.indexOf(p) === 0) delete B.overrides[k]; }); }
+    $$("[data-use]", box).forEach(function (b) { b.addEventListener("click", function () { var c = n.cands[+b.getAttribute("data-use")]; clearBelow(n.path); B.overrides[n.path] = c.label; build(); }); });
+    $$("[data-act]", box).forEach(function (b) { b.addEventListener("click", function () { clearBelow(n.path); if (b.getAttribute("data-act") === "leaf") B.overrides[n.path] = "__leaf__"; else delete B.overrides[n.path]; build(); }); });
+  }
+  function predictPanel(leaf) {
+    $("#p-agev").textContent = $("#p-age").value;
+    var cond = conditions(B.tree, leaf.path), pc = predClass(leaf);
+    $("#p-out").innerHTML = "<dl class='kv'><dt>Path</dt><dd style='font-family:var(--font-body)'>" + (cond.length ? esc(cond.join(" → ")) : "root is a leaf") + "</dd>" +
+      "<dt>Leaf counts</dt><dd>" + cnt(leaf.n0, leaf.n1) + "</dd><dt>MLE p̂</dt><dd>" + fx(leaf.n1 / leaf.n, 3) + "</dd><dt>Laplace (n₁+1)/(n+2)</dt><dd>" + fx((leaf.n1 + 1) / (leaf.n + 2), 3) + "</dd>" +
+      "<dt>Prediction</dt><dd><span class='pill y" + pc + "'>" + (pc ? "readmitted (1)" : "not readmitted (0)") + "</span></dd></dl>" +
+      (leaf.n < 3 ? "<p class='note-sm'>This leaf rests on " + leaf.n + " training patient" + (leaf.n === 1 ? "" : "s") + ". Treat the probability with caution.</p>" : "");
+  }
+  function dataTable() {
+    var h = "<thead><tr><th>ID</th><th>Age</th><th>Diabetes</th><th>Prior admissions</th><th>Outcome y</th><th>Tree predicts</th></tr></thead><tbody>";
+    PX.forEach(function (x, i) {
+      var p = predClass(leafOf(B.tree, x)), y = B.y[i];
+      h += "<tr><td class='mono'>" + (i + 1) + "</td><td class='mono'>" + x[0] + "</td><td>" + PF[1].levels[x[1]] + "</td><td>" + PF[2].levels[x[2]] + "</td>" +
+        "<td><button class='flip y" + y + (y !== Y0[i] ? " changed" : "") + "' data-flip='" + i + "' aria-label='Flip outcome of patient " + (i + 1) + "'>" + y + (y ? " readmitted" : " not readmitted") + "</button></td>" +
+        "<td>" + p + (p === y ? " ✓" : " ✗") + "</td></tr>";
+    });
+    $("#b-data").innerHTML = h + "</tbody>";
+    $$("[data-flip]", $("#b-data")).forEach(function (b) { b.addEventListener("click", function () { var i = +b.getAttribute("data-flip"); B.y[i] = 1 - B.y[i]; build(); var nb = $("[data-flip='" + i + "']"); if (nb) nb.focus(); }); });
+  }
+  $$("#b-crit button").forEach(function (b) { b.addEventListener("click", function () { B.crit = b.getAttribute("data-v"); $$("#b-crit button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); B.overrides = {}; build(); }); });
+  $("#b-depth").addEventListener("change", function () { B.maxDepth = +this.value; build(); });
+  $("#b-leaf").addEventListener("change", function () { B.minLeaf = +this.value; build(); });
+  $("#b-reset").addEventListener("click", function () { B.y = Y0.slice(); B.overrides = {}; B.sel = "r"; B.crit = "gini"; B.maxDepth = 99; B.minLeaf = 1; $("#b-depth").value = "99"; $("#b-leaf").value = "1"; $$("#b-crit button").forEach(function (x) { x.setAttribute("aria-pressed", String(x.getAttribute("data-v") === "gini")); }); build(); });
+  ["#p-age", "#p-diab", "#p-prior"].forEach(function (s) { $(s).addEventListener("input", render); });
+  if (Scan) B.listeners.push(Scan.refresh);
+  B.build = build;
+})();
+
+/* ===================== Lab: decision threshold ===================== */
+(function () {
+  var svg = $("#th-svg"); if (!svg) return;
+  var cost = $("#th-cost"), pa = $("#th-a");
+  function draw() {
+    if (!B.tree) return;
+    var r = Math.pow(2, +cost.value), a = +pa.value, tau = 1 / (1 + r);
+    $("#th-costv").textContent = r.toFixed(2) + " → τ* = " + tau.toFixed(3);
+    $("#th-av").textContent = a === 0 ? "0 (MLE)" : a === 1 ? "1 (Laplace)" : a.toFixed(1);
+    var leaves = []; walkNodes(B.tree, function (n) { if (!n.split) leaves.push(n); });
+    var XA = 40, XB = 640, AX = 112;
+    function sx(p) { return XA + p * (XB - XA); }
+    clear(svg);
+    S("line", { x1: XA, x2: XB, y1: AX, y2: AX, "class": "s-axis" }, svg);
+    for (var t = 0; t <= 1.0001; t += 0.1) { S("line", { x1: sx(t), x2: sx(t), y1: AX, y2: AX + 5, "class": "s-axis" }, svg); S("text", { x: sx(t), y: AX + 19, "text-anchor": "middle", "font-size": 11, "class": "s-muted mono" }, svg, t.toFixed(1)); }
+    S("rect", { x: sx(tau), y: 14, width: XB - sx(tau), height: AX - 14, "class": "s-t1", opacity: 0.45 }, svg);
+    S("line", { x1: sx(tau), x2: sx(tau), y1: 10, y2: AX, "class": "s-accent", "stroke-width": 2 }, svg);
+    S("text", { x: sx(tau) + (tau > 0.8 ? -6 : 6), y: 24, "text-anchor": tau > 0.8 ? "end" : "start", "font-size": 12, "class": "s-ink mono" }, svg, "τ* = " + tau.toFixed(3) + "  (flag leaves to the right)");
+    var placed = [];
+    var rows = leaves.map(function (n, k) {
+      var p = (n.n1 + a) / (n.n + 2 * a), lane = 0;
+      while (placed.some(function (q) { return q.lane === lane && Math.abs(q.x - sx(p)) < 34; })) lane++;
+      placed.push({ x: sx(p), lane: lane });
+      var yy = AX - 22 - lane * 26, flag = p > tau;
+      if (flag) S("path", { d: "M" + sx(p) + "," + (yy - 8) + "L" + (sx(p) + 8) + "," + (yy + 6) + "L" + (sx(p) - 8) + "," + (yy + 6) + "Z", "class": "s-c1 s-ring" }, svg);
+      else S("circle", { cx: sx(p), cy: yy, r: 7, "class": "s-c0 s-ring" }, svg);
+      S("text", { x: sx(p) + 11, y: yy + 4, "font-size": 11, "class": "s-ink mono" }, svg, "L" + (k + 1));
+      return { k: k, n: n, p: p, flag: flag };
+    });
+    var h = "<thead><tr><th>Leaf</th><th>Rule</th><th>[n₀ | n₁]</th><th>MLE p̂</th><th>Smoothed p̂</th><th>Decision at τ*</th></tr></thead><tbody>";
+    rows.forEach(function (o) {
+      var cond = conditions(B.tree, o.n.path);
+      h += "<tr><td class='mono'>L" + (o.k + 1) + "</td><td>" + esc(cond.join(" and ") || "all patients") + "</td><td class='mono'>" + cnt(o.n.n0, o.n.n1) + "</td><td class='mono'>" + fx(o.n.n1 / o.n.n, 3) + "</td><td class='mono'>" + fx(o.p, 3) + "</td><td><span class='pill y" + (o.flag ? 1 : 0) + "'>" + (o.flag ? "flag: predict 1" : "predict 0") + "</span></td></tr>";
+    });
+    $("#th-table").innerHTML = h + "</tbody>";
+  }
+  cost.addEventListener("input", draw); pa.addEventListener("input", draw);
+  B.listeners.push(draw);
+})();
+
+/* ===================== Lab: pruning ===================== */
+(function () {
+  var svg = $("#pr-svg"); if (!svg) return;
+  var sl = $("#pr-alpha"), seq = [], N = 14;
+  function sequence(root) {
+    var collapsed = {}, out = [], internals = [];
+    walkNodes(root, function (n) { if (n.split) internals.push(n); });
+    function isLeaf(n) { return !n.split || collapsed[n.path]; }
+    function hidden(n) { return Object.keys(collapsed).some(function (p) { return p !== n.path && n.path.indexOf(p) === 0; }); }
+    function st(n) { if (isLeaf(n)) return { R: Math.min(n.n0, n.n1) / N, L: 1 }; var a = st(n.left), b = st(n.right); return { R: a.R + b.R, L: a.L + b.L }; }
+    var s = st(root); out.push({ alpha: 0, col: {}, R: s.R, L: s.L });
+    var guard = 0;
+    while (!isLeaf(root) && guard++ < 100) {
+      var gmin = Infinity, gs = [];
+      internals.forEach(function (t) { if (isLeaf(t) || hidden(t)) return; var q = st(t), v = (Math.min(t.n0, t.n1) / N - q.R) / (q.L - 1); gs.push([t, v]); gmin = Math.min(gmin, v); });
+      gs.forEach(function (z) { if (z[1] <= gmin + 1e-12) collapsed[z[0].path] = true; });
+      s = st(root); out.push({ alpha: Math.max(0, gmin), col: Object.assign({}, collapsed), R: s.R, L: s.L, g: gmin });
+    }
+    return out.filter(function (o, k) { return k === out.length - 1 || out[k + 1].alpha > o.alpha + 1e-12; });
+  }
+  function optimalAt(al) { var k = 0; for (var q = 0; q < seq.length; q++) if (seq[q].alpha <= al + 1e-12) k = q; return k; }
+  var amax = 1;
+  function recompute() {
+    if (!B.tree) return;
+    N = B.tree.n; seq = sequence(B.tree);
+    var last = seq[seq.length - 1].alpha; amax = last > 0 ? last * 1.35 : 0.1;
+    sl.max = amax; sl.step = amax / 1000;
+    if (+sl.value > amax) sl.value = 0;
+    draw();
+  }
+  function frac(v) { return (v * N).toFixed(2) + "/" + N; }
+  function draw() {
+    var al = +sl.value, k = optimalAt(al);
+    $("#pr-alphav").textContent = al.toFixed(4) + "  (= " + frac(al) + ")";
+    var XA = 56, XB = 570, YA = 225, YB = 14;
+    var ymax = Math.max.apply(null, seq.map(function (o) { return o.R + amax * o.L; }));
+    function sx(a) { return XA + a / amax * (XB - XA); }
+    function sy(v) { return YA - v / ymax * (YA - YB); }
+    clear(svg);
+    for (var t = 0; t <= 4; t++) { var v = ymax * t / 4; S("line", { x1: XA, x2: XB, y1: sy(v), y2: sy(v), "class": "s-grid" }, svg); S("text", { x: XA - 6, y: sy(v) + 4, "text-anchor": "end", "font-size": 10.5, "class": "s-muted mono" }, svg, v.toFixed(2)); }
+    for (var u = 0; u <= 5; u++) { var a = amax * u / 5; S("text", { x: sx(a), y: YA + 17, "text-anchor": "middle", "font-size": 10.5, "class": "s-muted mono" }, svg, a.toFixed(3)); }
+    S("text", { x: (XA + XB) / 2, y: YA + 33, "text-anchor": "middle", "font-size": 11.5, "class": "s-ink2" }, svg, "α (cost per leaf)");
+    var labY = [];
+    seq.forEach(function (o, q) {
+      S("line", { x1: sx(0), y1: sy(o.R), x2: sx(amax), y2: sy(o.R + amax * o.L), "class": q === k ? "s-accent" : "s-line-muted", "stroke-width": q === k ? 3 : 1.3 }, svg);
+      var ly = sy(o.R + amax * o.L); while (labY.some(function (z) { return Math.abs(z - ly) < 13; })) ly += 13; labY.push(ly);
+      S("text", { x: XB + 6, y: ly + 4, "font-size": 11, "class": q === k ? "s-ink mono" : "s-muted mono" }, svg, "T" + q + " · " + o.L + (o.L === 1 ? " leaf" : " leaves"));
+    });
+    seq.forEach(function (o, q) { if (q > 0) S("circle", { cx: sx(o.alpha), cy: sy(o.R + o.alpha * o.L), r: 4, "class": "s-acc-fill s-ring" }, svg); });
+    S("line", { x1: sx(al), x2: sx(al), y1: YB, y2: YA, "class": "s-accent", "stroke-width": 1.2 }, svg);
+    var h = "<thead><tr><th>Tree</th><th>Leaves</th><th>R(T) = errors / N</th><th>Optimal for α in</th><th>R(T) + α·leaves at current α</th></tr></thead><tbody>";
+    seq.forEach(function (o, q) {
+      var hi = q + 1 < seq.length ? fx(seq[q + 1].alpha, 4) + ")" : "∞)";
+      h += "<tr" + (q === k ? " class='hl'" : "") + "><td class='mono'>T" + q + "</td><td class='mono'>" + o.L + "</td><td class='mono'>" + Math.round(o.R * N) + "/" + N + " = " + fx(o.R, 4) + "</td><td class='mono'>[" + fx(o.alpha, 4) + ", " + hi + "</td><td class='mono'>" + fx(o.R + al * o.L, 4) + "</td></tr>";
+    });
+    $("#pr-table").innerHTML = h + "</tbody>";
+    var col = seq[k].col;
+    renderTree($("#pr-tree"), B.tree, { isLeaf: function (n) { return !n.split || col[n.path]; },
+      line3: function (n) { return "errors as leaf = " + Math.min(n.n0, n.n1); } });
+  }
+  sl.addEventListener("input", draw);
+  B.listeners.push(recompute);
+})();
+
+/* ===================== Lab: overfitting sandbox ===================== */
+(function () {
+  var cv = $("#sb-canvas"); if (!cv) return;
+  var kind = "moons", seed = 1, fitted = null, train = null, test = null;
+  var DOM = { moons: [-1.7, 2.7, -1.4, 1.9], diag: [0, 1, 0, 1], xor: [-1, 1, -1, 1] };
+  var SF = [{ name: "x₁", type: "num", fmt: function (t) { return t.toFixed(2); } }, { name: "x₂", type: "num", fmt: function (t) { return t.toFixed(2); } }];
+  function rng(s) { var a = s >>> 0; return function () { a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function gauss(r) { var u = 0; while (u === 0) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); }
+  function gen(n, noise, s) {
+    var r = rng(s), X = [], y = [];
+    for (var i = 0; i < n; i++) {
+      var x1, x2, c;
+      if (kind === "moons") { c = i % 2; var t = Math.PI * r(); if (c === 0) { x1 = Math.cos(t); x2 = Math.sin(t); } else { x1 = 1 - Math.cos(t); x2 = 0.5 - Math.sin(t); } x1 += noise * gauss(r); x2 += noise * gauss(r); }
+      else if (kind === "diag") { x1 = r(); x2 = r(); c = x2 > x1 ? 1 : 0; if (r() < noise / 2) c = 1 - c; }
+      else { x1 = 2 * r() - 1; x2 = 2 * r() - 1; c = ((x1 > 0) !== (x2 > 0)) ? 1 : 0; if (r() < noise / 2) c = 1 - c; }
+      X.push([x1, x2]); y.push(c);
+    }
+    return { X: X, y: y };
+  }
+  function errAt(D, data, d) { var e = 0; for (var i = 0; i < data.X.length; i++) if (predClass(leafOf(fitted, data.X[i], d)) !== data.y[i]) e++; return e / data.X.length; }
+  function leavesAt(d) { var c = 0; (function w(n) { if (!n.split || n.depth >= d) { c++; return; } w(n.left); w(n.right); })(fitted); return c; }
+  var curve = [];
+  function refit() {
+    var noise = +$("#sb-noise").value, n = +$("#sb-n").value;
+    $("#sb-noisev").textContent = kind === "moons" ? "σ = " + noise.toFixed(2) : (noise * 50).toFixed(1) + "% labels flipped";
+    train = gen(n, noise, seed * 7919 + 13);
+    test = gen(2000, noise, 424242);
+    fitted = grow(train.X, train.y, train.X.map(function (_, i) { return i; }), SF, { crit: "gini", maxDepth: 14, minLeaf: 1, minSplit: 2 });
+    curve = [];
+    for (var d = 1; d <= 14; d++) curve.push({ d: d, tr: errAt(null, train, d), te: errAt(null, test, d), L: leavesAt(d) });
+    draw();
+  }
+  function colors() { var cs = getComputedStyle(document.documentElement); return { t0: cs.getPropertyValue("--t0").trim(), t1: cs.getPropertyValue("--t1").trim(), c0: cs.getPropertyValue("--c0").trim(), c1: cs.getPropertyValue("--c1").trim(), ink: cs.getPropertyValue("--ink").trim(), ring: cs.getPropertyValue("--surface").trim() }; }
+  function draw() {
+    if (!fitted) return;
+    var d = +$("#sb-depth").value; $("#sb-depthv").textContent = d;
+    var D = DOM[kind], C = colors(), ctx = cv.getContext("2d"), Wd = cv.width, G = 140, cell = Wd / G;
+    for (var gx = 0; gx < G; gx++) for (var gy = 0; gy < G; gy++) {
+      var x1 = D[0] + (gx + 0.5) / G * (D[1] - D[0]), x2 = D[3] - (gy + 0.5) / G * (D[3] - D[2]);
+      ctx.fillStyle = predClass(leafOf(fitted, [x1, x2], d)) ? C.t1 : C.t0;
+      ctx.fillRect(Math.floor(gx * cell), Math.floor(gy * cell), Math.ceil(cell) + 1, Math.ceil(cell) + 1);
+    }
+    function px(x1, x2) { return [(x1 - D[0]) / (D[1] - D[0]) * Wd, (D[3] - x2) / (D[3] - D[2]) * Wd]; }
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 3;
+    if (kind === "diag") { var a = px(0, 0), b = px(1, 1); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+    if (kind === "xor") { var c1 = px(0, -1), c2 = px(0, 1), c3 = px(-1, 0), c4 = px(1, 0); ctx.beginPath(); ctx.moveTo(c1[0], c1[1]); ctx.lineTo(c2[0], c2[1]); ctx.moveTo(c3[0], c3[1]); ctx.lineTo(c4[0], c4[1]); ctx.stroke(); }
+    ctx.lineWidth = 2.5; ctx.strokeStyle = C.ring;
+    train.X.forEach(function (x, i) {
+      var p = px(x[0], x[1]); if (p[0] < -10 || p[0] > Wd + 10 || p[1] < -10 || p[1] > Wd + 10) return;
+      ctx.beginPath();
+      if (train.y[i]) { ctx.moveTo(p[0], p[1] - 11); ctx.lineTo(p[0] + 10, p[1] + 7); ctx.lineTo(p[0] - 10, p[1] + 7); ctx.closePath(); ctx.fillStyle = C.c1; }
+      else { ctx.arc(p[0], p[1], 8, 0, 2 * Math.PI); ctx.fillStyle = C.c0; }
+      ctx.fill(); ctx.stroke();
+    });
+    var cur = curve[d - 1], bestK = 0; curve.forEach(function (o, k) { if (o.te < curve[bestK].te - 1e-12) bestK = k; });
+    $("#sb-stats").innerHTML = '<span class="stat">leaves <b>' + cur.L + '</b></span><span class="stat">training error <b>' + (100 * cur.tr).toFixed(1) + '%</b></span><span class="stat' + (d - 1 > bestK + 2 ? " warn" : "") + '">test error <b>' + (100 * cur.te).toFixed(1) + '%</b></span>' +
+      '<span class="stat">root split <b>' + (fitted.split ? esc(fitted.split.label) : "none") + '</b></span><span class="stat">best test depth <b>' + (bestK + 1) + '</b></span>';
+    var sv = $("#sb-curve"); clear(sv);
+    var XA = 50, XB = 405, YA = 255, YB = 16, ymax = Math.max(0.3, Math.ceil(Math.max.apply(null, curve.map(function (o) { return o.te; })) * 10 + 0.5) / 10);
+    function sx(v) { return XA + (v - 1) / 13 * (XB - XA); }
+    function sy(v) { return YA - v / ymax * (YA - YB); }
+    for (var t = 0; t <= ymax + 1e-9; t += 0.1) { S("line", { x1: XA, x2: XB, y1: sy(t), y2: sy(t), "class": "s-grid" }, sv); S("text", { x: XA - 6, y: sy(t) + 4, "text-anchor": "end", "font-size": 12.5, "class": "s-muted mono" }, sv, (100 * t).toFixed(0) + "%"); }
+    [1, 4, 7, 10, 14].forEach(function (v) { S("text", { x: sx(v), y: YA + 17, "text-anchor": "middle", "font-size": 12.5, "class": "s-muted mono" }, sv, v); });
+    S("text", { x: (XA + XB) / 2, y: YA + 33, "text-anchor": "middle", "font-size": 13, "class": "s-ink2" }, sv, "maximum depth");
+    S("line", { x1: sx(d), x2: sx(d), y1: YB, y2: YA, "class": "s-accent", "stroke-width": 1.5 }, sv);
+    [["tr", "s-c0-line", "s-c0"], ["te", "s-c1-line", "s-c1"]].forEach(function (z) {
+      S("path", { d: curve.map(function (o, k) { return (k ? "L" : "M") + sx(o.d).toFixed(1) + "," + sy(o[z[0]]).toFixed(1); }).join(""), "class": z[1] }, sv);
+      curve.forEach(function (o) { S("circle", { cx: sx(o.d), cy: sy(o[z[0]]), r: o.d === d ? 5.5 : 3, "class": z[2] + " s-ring" }, sv); });
+    });
+    S("text", { x: sx(bestK + 1), y: sy(curve[bestK].te) + 18, "text-anchor": "middle", "font-size": 12.5, "class": "s-ink mono" }, sv, "min");
+  }
+  $$("#sb-data button").forEach(function (b) { b.addEventListener("click", function () { kind = b.getAttribute("data-v"); $$("#sb-data button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); refit(); }); });
+  $("#sb-noise").addEventListener("change", refit); $("#sb-noise").addEventListener("input", function () { var v = +this.value; $("#sb-noisev").textContent = kind === "moons" ? "σ = " + v.toFixed(2) : (v * 50).toFixed(1) + "% labels flipped"; });
+  $("#sb-n").addEventListener("change", refit);
+  $("#sb-depth").addEventListener("input", draw);
+  $("#sb-resample").addEventListener("click", function () { seed++; refit(); });
+  refit();
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  if (mq.addEventListener) mq.addEventListener("change", draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+})();
+
+/* ===================== start shared labs ===================== */
+if (B.build) B.build();
+
+/* ===================== contents scroll-spy ===================== */
+(function () {
+  var links = $$(".toc a"), map = {};
+  links.forEach(function (a) { map[a.getAttribute("href").slice(1)] = a; });
+  var heads = $$("main .prose h2[id]");
+  if (!("IntersectionObserver" in window) || !heads.length) return;
+  var visible = {};
+  var io = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { visible[e.target.id] = e.boundingClientRect.top; });
+    var cur = heads[0].id;
+    heads.forEach(function (h) { if (h.getBoundingClientRect().top < window.innerHeight * 0.3) cur = h.id; });
+    links.forEach(function (a) { a.classList.toggle("active", a === map[cur]); });
+  }, { rootMargin: "0px 0px -60% 0px", threshold: [0, 1] });
+  heads.forEach(function (h) { io.observe(h); });
+  window.addEventListener("scroll", function () {
+    var cur = heads[0].id;
+    heads.forEach(function (h) { if (h.getBoundingClientRect().top < window.innerHeight * 0.3) cur = h.id; });
+    links.forEach(function (a) { a.classList.toggle("active", a === map[cur]); });
+  }, { passive: true });
+})();
+})();
+
+</script>
+
+</body>
+</html>
